@@ -1245,6 +1245,7 @@ const USER_COLORS = ['#00D4FF','#FF4D6A','#3DFF8F','#FFD166','#FF69B4','#B48EFF'
 // インメモリDB（Supabaseから読み込んだデータをキャッシュ）
 let db = { users:[], trainings:[], weights:[] };
 let currentUser = null; // ログイン中のSupabaseユーザー
+let accessToken = null;  // JWTトークン
 
 // ════════════════════════════════════════
 //  AUTH
@@ -1313,6 +1314,7 @@ async function signOut() {
     await sb.auth.signOut();
     // 念のため手動で画面切り替え
     currentUser = null;
+    accessToken = null;
     _lastUserId = null;
     db = { users:[], trainings:[], weights:[] };
     document.getElementById('loginScreen').style.display = 'flex';
@@ -1330,6 +1332,7 @@ sb.auth.onAuthStateChange(async (event, session) => {
     const uid = session.user.id;
     if (event === 'SIGNED_OUT') return;
     currentUser = session.user;
+    accessToken = session.access_token;
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('appScreen').style.display   = 'block';
     if (_lastUserId !== uid || event === 'SIGNED_IN') {
@@ -1341,6 +1344,7 @@ sb.auth.onAuthStateChange(async (event, session) => {
   } else {
     _lastUserId = null;
     currentUser = null;
+    accessToken = null;
     db = { users:[], trainings:[], weights:[] };
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('appScreen').style.display   = 'none';
@@ -1352,13 +1356,12 @@ sb.auth.onAuthStateChange(async (event, session) => {
 // ════════════════════════════════════════
 //  SUPABASE DATA LAYER
 // ════════════════════════════════════════
-async function getToken() {
-  const { data: { session } } = await sb.auth.getSession();
-  return session ? session.access_token : null;
+function getToken() {
+  return accessToken;
 }
 
 async function sbFetch(path, method='GET', body=null) {
-  const token = await getToken();
+  const token = getToken();
   const opts = {
     method,
     headers: {
@@ -2499,6 +2502,7 @@ dpInit('dp_w', today());
   const { data: { session } } = await sb.auth.getSession();
   if (session && session.user) {
     currentUser = session.user;
+    accessToken = session.access_token;
     _lastUserId = session.user.id;
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('appScreen').style.display   = 'block';
