@@ -1290,8 +1290,18 @@ async function authSubmit() {
 }
 
 async function signOut() {
-  if (!confirm('ログアウトしますか？')) return;
-  await sb.auth.signOut();
+  try {
+    await sb.auth.signOut();
+    // 念のため手動で画面切り替え
+    currentUser = null;
+    _lastUserId = null;
+    db = { users:[], trainings:[], weights:[] };
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('appScreen').style.display   = 'none';
+    closeDrawer();
+  } catch(e) {
+    alert('ログアウトに失敗しました: ' + e.message);
+  }
 }
 
 // 認証状態の監視
@@ -1325,26 +1335,35 @@ sb.auth.onAuthStateChange(async (event, session) => {
 async function loadAllData() {
   if (!currentUser) return;
 
-  // 自分のプロフィールをusersとして扱う
-  const { data: prof } = await sb.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
-  if (prof) {
-    db.users = [{ id: prof.id, name: prof.name, height: prof.height, targetWeight: prof.target_weight, createdAt: prof.created_at }];
-  } else {
-    db.users = [];
+  try {
+    // 自分のプロフィールをusersとして扱う
+    const { data: prof, error: profErr } = await sb.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
+    if (profErr) console.error('profiles error:', profErr);
+    if (prof) {
+      db.users = [{ id: prof.id, name: prof.name, height: prof.height, targetWeight: prof.target_weight, createdAt: prof.created_at }];
+    } else {
+      db.users = [];
+    }
+
+    const { data: trainings, error: tErr } = await sb.from('trainings').select('*').eq('user_id', currentUser.id).order('date', { ascending: false });
+    if (tErr) console.error('trainings error:', tErr);
+    db.trainings = (trainings||[]).map(t => ({
+      id: t.id, userId: t.user_id, type: t.type, date: t.date,
+      location: t.location, address: t.address, duration: t.duration,
+      cal: t.cal, postWeight: t.post_weight, memo: t.memo, createdAt: t.created_at
+    }));
+
+    const { data: weights, error: wErr } = await sb.from('weights').select('*').eq('user_id', currentUser.id).order('date', { ascending: false });
+    if (wErr) console.error('weights error:', wErr);
+    db.weights = (weights||[]).map(w => ({
+      id: w.id, userId: w.user_id, weight: w.weight, date: w.date,
+      fat: w.fat, memo: w.memo, createdAt: w.created_at
+    }));
+
+    console.log('loadAllData:', { users: db.users.length, trainings: db.trainings.length, weights: db.weights.length });
+  } catch(e) {
+    console.error('loadAllData failed:', e);
   }
-
-  const { data: trainings } = await sb.from('trainings').select('*').eq('user_id', currentUser.id).order('date', { ascending: false });
-  db.trainings = (trainings||[]).map(t => ({
-    id: t.id, userId: t.user_id, type: t.type, date: t.date,
-    location: t.location, address: t.address, duration: t.duration,
-    cal: t.cal, postWeight: t.post_weight, memo: t.memo, createdAt: t.created_at
-  }));
-
-  const { data: weights } = await sb.from('weights').select('*').eq('user_id', currentUser.id).order('date', { ascending: false });
-  db.weights = (weights||[]).map(w => ({
-    id: w.id, userId: w.user_id, weight: w.weight, date: w.date,
-    fat: w.fat, memo: w.memo, createdAt: w.created_at
-  }));
 }
 
 async function sbSaveUser(name, height, targetWeight) {
@@ -1541,7 +1560,11 @@ async function deleteUser(id) {
 function renderUsers() {
   const grid = document.getElementById('userGrid');
   if (!db.users.length) {
-    grid.innerHTML = `<div class="empty"><div class="empty-icon">👤</div><div class="empty-text">プロフィールを設定してください</div></div>`;
+    grid.innerHTML = `<div class="empty">
+      <div class="empty-icon">👤</div>
+      <div class="empty-text" style="margin-bottom:16px;">プロフィールが未設定です</div>
+      <button class="btn btn-primary" onclick="openModal('modalUser')" style="margin:0 auto;">プロフィールを設定する</button>
+    </div>`;
     return;
   }
   grid.innerHTML = db.users.map((u,i) => {
