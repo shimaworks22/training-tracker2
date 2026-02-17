@@ -1259,23 +1259,20 @@ async function authSubmit() {
       const { data, error } = await sb.auth.signInWithPassword({ email, password });
       if (error) throw error;
     } else {
-      const { data, error } = await sb.auth.signUp({ email, password });
+      // サインアップ：名前をuser_metadataに保存
+      const { data, error } = await sb.auth.signUp({
+        email, password,
+        options: { data: { display_name: name } }
+      });
       if (error) throw error;
-      // 新規登録後：プロフィールを自動作成（登録名でユーザー登録）
-      if (data.user) {
-        await sb.from('profiles').upsert(
-          { id: data.user.id, name: name, height: null, target_weight: null },
-          { onConflict: 'id' }
-        );
-        // メール確認なしの場合はそのままサインイン
-        if (!data.session) {
-          // メール確認が必要な場合
-          document.getElementById('authLoading').style.display = 'none';
-          document.getElementById('authSubmitBtn').style.display = 'block';
-          showAuthError('確認メールを送信しました。メールのリンクをクリックしてください。');
-          return;
-        }
+      if (!data.session) {
+        // メール確認が必要な場合
+        document.getElementById('authLoading').style.display = 'none';
+        document.getElementById('authSubmitBtn').style.display = 'block';
+        showAuthError('確認メールを送信しました。メールのリンクをクリックしてください。');
+        return;
       }
+      // セッションがある場合はonAuthStateChangeが自動でprofiles作成まで行う
     }
   } catch(e) {
     const msg = e.message || 'エラーが発生しました';
@@ -1305,11 +1302,9 @@ async function signOut() {
 }
 
 // 認証状態の監視
-let _lastUserId = null; // 同じユーザーで二重ロードを防ぐ
+let _lastUserId = null;
 sb.auth.onAuthStateChange(async (event, session) => {
   if (session && session.user) {
-    // SIGNED_IN / TOKEN_REFRESHED / INITIAL_SESSION で発火するが
-    // 同じユーザーの場合は再ロードしない（TOKEN_REFRESH除外）
     const uid = session.user.id;
     if (event === 'SIGNED_OUT') return;
     currentUser = session.user;
@@ -1317,6 +1312,10 @@ sb.auth.onAuthStateChange(async (event, session) => {
     document.getElementById('appScreen').style.display   = 'block';
     if (_lastUserId !== uid || event === 'SIGNED_IN') {
       _lastUserId = uid;
+      // profiles未作成なら自動INSERT（新規登録直後）
+      if (event === 'SIGNED_IN') {
+        await ensureProfile(session.user);
+      }
       await loadAllData();
       updateAll();
     }
@@ -1328,6 +1327,22 @@ sb.auth.onAuthStateChange(async (event, session) => {
     document.getElementById('appScreen').style.display   = 'none';
   }
 });
+
+// ログイン直後にprofilesが未作成なら自動で作る
+async function ensureProfile(user) {
+  try {
+    const { data: existing } = await sb.from('profiles').select('id').eq('id', user.id).maybeSingle();
+    if (!existing) {
+      // user_metadataのdisplay_nameを名前として使用
+      const name = (user.user_metadata && user.user_metadata.display_name)
+        ? user.user_metadata.display_name
+        : (user.email ? user.email.split('@')[0] : 'ユーザー');
+      await sb.from('profiles').insert({ id: user.id, name, height: null, target_weight: null });
+    }
+  } catch(e) {
+    console.error('ensureProfile error:', e);
+  }
+}
 
 // ════════════════════════════════════════
 //  SUPABASE DATA LAYER
@@ -1553,6 +1568,17 @@ function openEditUser(id) {
   openModal('modalEditUser');
 }
 
+// saveUser: 新規プロフィール作成（名前をmetadataから自動セット）
+function openModalUser() {
+  // 名前をSupabaseのuser_metadataから自動入力
+  if (currentUser && currentUser.user_metadata && currentUser.user_metadata.display_name) {
+    document.getElementById('u_name').value = currentUser.user_metadata.display_name;
+  } else if (currentUser && currentUser.email) {
+    document.getElementById('u_name').value = currentUser.email.split('@')[0];
+  }
+  openModal('modalUser');
+}
+
 async function updateUser() {
   const name = document.getElementById('eu_name').value.trim();
   if (!name) { alert('名前を入力してください'); return; }
@@ -1579,8 +1605,8 @@ function renderUsers() {
   if (!db.users.length) {
     grid.innerHTML = `<div class="empty">
       <div class="empty-icon">👤</div>
-      <div class="empty-text" style="margin-bottom:16px;">プロフィールが未設定です</div>
-      <button class="btn btn-primary" onclick="openModal('modalUser')" style="margin:0 auto;">プロフィールを設定する</button>
+      <div class="empty-text" style="margin-bottom:16px;">プロフィールが読み込めていません</div>
+      <button class="btn btn-primary" onclick="loadAllData().then(updateAll)" style="margin:0 auto;">再読み込み</button>
     </div>`;
     return;
   }
@@ -2519,6 +2545,7 @@ dpInit('dp_w', today());
     _lastUserId = session.user.id;
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('appScreen').style.display   = 'block';
+    await ensureProfile(session.user);
     await loadAllData();
     updateAll();
   } else {
