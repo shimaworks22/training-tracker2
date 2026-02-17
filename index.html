@@ -1460,12 +1460,20 @@ async function saveUser() {
   if (!name) { alert('名前を入力してください'); return; }
   const height = parseFloat(document.getElementById('u_height').value) || null;
   const target = parseFloat(document.getElementById('u_target').value) || null;
+  // ログイン確認
+  if (!currentUser) { alert('ログインしていません。再度ログインしてください。'); return; }
+  const btn = document.querySelector('#modalUser .btn-primary');
+  if (btn) { btn.textContent = '保存中...'; btn.disabled = true; }
   try {
     await sbSaveUser(name, height, target);
     closeModal('modalUser');
     ['u_name','u_height','u_target'].forEach(id => document.getElementById(id).value = '');
     updateAll(); showToast('✅ ユーザーを登録しました');
-  } catch(e) { alert('エラー: ' + e.message); }
+  } catch(e) {
+    alert('エラー: ' + e.message);
+  } finally {
+    if (btn) { btn.textContent = '登録'; btn.disabled = false; }
+  }
 }
 
 function openEditUser(id) {
