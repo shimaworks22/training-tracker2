@@ -865,8 +865,20 @@
       </div>
     </div>
 
-    <!-- Row2: 種別内訳 + 体重進捗 -->
-    <div class="charts-row" style="margin-bottom:20px;">
+    <!-- Row2: いいねランキング + 最新トレーニング -->
+    <div class="dash-row2" style="margin-bottom:20px;">
+      <div class="card">
+        <div class="card-title">👍 月間いいねランキング</div>
+        <div id="dashLikeRanking"><div class="empty" style="padding:16px 0;color:var(--muted);">データがありません</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">🏃 最新トレーニング</div>
+        <div id="dashLatestTrainings"><div class="empty" style="padding:16px 0;color:var(--muted);">データがありません</div></div>
+      </div>
+    </div>
+
+    <!-- Row3: 種別内訳 + 体重進捗 -->
+    <div class="charts-row">
       <div class="card">
         <div class="card-title">🎯 種別内訳</div>
         <div class="type-bar-wrap" id="typeBars">
@@ -878,18 +890,6 @@
         <div class="weight-user-grid" id="weightUserGrid">
           <div class="empty" style="padding:20px;color:var(--muted);">ユーザーを登録してください</div>
         </div>
-      </div>
-    </div>
-
-    <!-- Row3: いいねランキング + 最新トレーニング -->
-    <div class="dash-row2">
-      <div class="card">
-        <div class="card-title">👍 月間いいねランキング</div>
-        <div id="dashLikeRanking"><div class="empty" style="padding:16px 0;color:var(--muted);">データがありません</div></div>
-      </div>
-      <div class="card">
-        <div class="card-title">🏃 最新トレーニング</div>
-        <div id="dashLatestTrainings"><div class="empty" style="padding:16px 0;color:var(--muted);">データがありません</div></div>
       </div>
     </div>
   </section>
@@ -2139,7 +2139,7 @@ function renderDashboard() {
         <div style="flex:1;min-width:0;">
           <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
             <span style="font-size:13px;font-weight:600;color:var(--text);">${esc(user.name)}</span>
-            <span style="font-family:var(--font-display);font-size:16px;font-weight:800;color:${color};">${count}<span style="font-size:11px;color:var(--muted);margin-left:2px;">回</span></span>
+            <span style="font-family:var(--font-display);font-size:22px;font-weight:800;color:${color};">${count}<span style="font-size:12px;color:var(--muted);margin-left:3px;">回</span></span>
           </div>
           <div style="height:10px;background:var(--bg3);border-radius:99px;overflow:hidden;">
             <div style="height:100%;width:${count===0?0:(count/maxCount*100).toFixed(0)}%;background:${color};border-radius:99px;transition:width 0.4s ease;"></div>
@@ -2170,7 +2170,7 @@ function renderDashboard() {
         <div style="flex:1;min-width:0;">
           <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
             <span style="font-size:13px;font-weight:600;color:var(--text);">${esc(user.name)}</span>
-            <span style="font-family:var(--font-display);font-size:16px;font-weight:800;color:${color};">${cal.toLocaleString()}<span style="font-size:11px;color:var(--muted);margin-left:2px;">kcal</span></span>
+            <span style="font-family:var(--font-display);font-size:22px;font-weight:800;color:${color};">${cal.toLocaleString()}<span style="font-size:12px;color:var(--muted);margin-left:3px;">kcal</span></span>
           </div>
           <div style="height:10px;background:var(--bg3);border-radius:99px;overflow:hidden;">
             <div style="height:100%;width:${cal===0?0:(cal/maxCal*100).toFixed(0)}%;background:${color};border-radius:99px;transition:width 0.4s ease;"></div>
