@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FITNESS TRACKER｜トレーニング & 体重管理</title>
+<title>TRAINING TRACKER｜トレーニング & 体重管理</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -77,34 +77,113 @@
   }
   .header-actions { display: flex; gap: 10px; }
 
-  /* ─── NAV ─── */
-  .nav {
-    display: flex;
-    background: var(--bg2);
-    border-bottom: 1px solid var(--border);
-    padding: 0 24px;
-    overflow-x: auto;
-    gap: 0;
-  }
-  .nav-btn {
-    padding: 13px 22px;
+  /* ─── HAMBURGER ─── */
+  .hamburger-btn {
+    width: 40px; height: 40px;
     background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    color: var(--muted);
-    font-size: 13px;
-    font-family: var(--font-body);
-    font-weight: 600;
+    border: 1px solid var(--border);
+    border-radius: 8px;
     cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.2s;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 5px;
+    padding: 8px;
+    transition: border-color 0.2s;
+  }
+  .hamburger-btn:hover { border-color: var(--accent); }
+  .hamburger-btn span {
+    display: block; width: 18px; height: 2px;
+    background: var(--text);
+    border-radius: 2px;
+    transition: all 0.25s;
+  }
+  .hamburger-btn.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .hamburger-btn.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+  .hamburger-btn.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  /* ─── DRAWER ─── */
+  .drawer-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 300;
+    backdrop-filter: blur(2px);
+  }
+  .drawer-overlay.open { display: block; }
+  .drawer {
+    position: fixed; top: 0; left: 0;
+    width: 260px; height: 100vh;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    z-index: 400;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+  .drawer.open { transform: translateX(0); }
+  .drawer-header {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .drawer-logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), #0080AA);
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .drawer-logo-title {
+    font-family: var(--font-display);
+    font-size: 17px; font-weight: 900;
+    letter-spacing: 0.1em; color: var(--accent);
+    line-height: 1;
+  }
+  .drawer-logo-sub {
+    font-size: 9px; color: var(--muted);
+    letter-spacing: 0.15em; margin-top: 2px;
+  }
+  .drawer-nav {
+    flex: 1; padding: 12px 0;
+  }
+  .drawer-nav-btn {
+    display: flex; align-items: center; gap: 14px;
+    width: 100%; padding: 14px 20px;
+    background: none; border: none;
+    color: var(--muted);
+    font-family: var(--font-body); font-size: 14px; font-weight: 600;
+    cursor: pointer; text-align: left;
     letter-spacing: 0.03em;
+    transition: all 0.15s;
+    border-left: 3px solid transparent;
   }
-  .nav-btn:hover { color: var(--text); }
-  .nav-btn.active {
+  .drawer-nav-btn:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+  .drawer-nav-btn.active {
     color: var(--accent);
-    border-bottom-color: var(--accent);
+    border-left-color: var(--accent);
+    background: rgba(0,212,255,0.06);
   }
+  .drawer-nav-btn .nav-icon { font-size: 18px; width: 24px; text-align: center; }
+  .drawer-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+  }
+  .drawer-logout-btn {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; padding: 12px 14px;
+    background: rgba(255,77,106,0.08);
+    border: 1px solid rgba(255,77,106,0.2);
+    border-radius: 8px; cursor: pointer;
+    color: var(--red); font-family: var(--font-body);
+    font-size: 13px; font-weight: 600;
+    transition: all 0.2s;
+  }
+  .drawer-logout-btn:hover { background: rgba(255,77,106,0.15); }
+
+  /* ─── NAV（旧タブ非表示） ─── */
+  .nav { display: none; }
+  .nav-btn { display: none; }
 
   /* ─── CONTENT ─── */
   .content {
@@ -627,7 +706,7 @@
   <div style="width:100%; max-width:400px;">
     <div style="text-align:center; margin-bottom:32px;">
       <div style="font-size:48px; margin-bottom:12px;">🏋️</div>
-      <div style="font-family:var(--font-display); font-size:32px; font-weight:900; letter-spacing:0.08em; color:var(--accent);">FITNESS TRACKER</div>
+      <div style="font-family:var(--font-display); font-size:32px; font-weight:900; letter-spacing:0.08em; color:var(--accent);">TRAINING TRACKER</div>
       <div style="font-size:12px; color:var(--muted); margin-top:4px;">トレーニング & 体重管理</div>
     </div>
     <div style="background:var(--bg2); border:1px solid var(--border); border-radius:16px; padding:28px; box-shadow:0 0 40px rgba(0,212,255,0.08);">
@@ -659,23 +738,60 @@
 <div id="appScreen" style="display:none;">
 
 
+<!-- DRAWER OVERLAY -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+
+<!-- DRAWER -->
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div class="drawer-logo-icon">🏆</div>
+    <div>
+      <div class="drawer-logo-title">TRAINING TRACKER</div>
+      <div class="drawer-logo-sub">トレーニング & 体重管理</div>
+    </div>
+  </div>
+  <nav class="drawer-nav">
+    <button class="drawer-nav-btn active" data-tab="dashboard" onclick="switchTab(this)">
+      <span class="nav-icon">📊</span> ダッシュボード
+    </button>
+    <button class="drawer-nav-btn" data-tab="users" onclick="switchTab(this)">
+      <span class="nav-icon">👥</span> ユーザー
+    </button>
+    <button class="drawer-nav-btn" data-tab="trainings" onclick="switchTab(this)">
+      <span class="nav-icon">💪</span> トレーニング
+    </button>
+    <button class="drawer-nav-btn" data-tab="weights" onclick="switchTab(this)">
+      <span class="nav-icon">⚖️</span> 体重
+    </button>
+  </nav>
+  <div class="drawer-footer">
+    <button class="drawer-logout-btn" onclick="signOut()">
+      <span>🚪</span> ログアウト
+    </button>
+  </div>
+</div>
+
 <!-- HEADER -->
 <header class="header">
-  <div class="header-logo">
-    <div class="logo-icon">🏆</div>
-    <div class="logo-text">
-      <div class="logo-title">FITNESS TRACKER</div>
-      <div class="logo-sub">トレーニング & 体重管理</div>
+  <div style="display:flex; align-items:center; gap:14px;">
+    <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleDrawer()">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="header-logo">
+      <div class="logo-icon">🏆</div>
+      <div class="logo-text">
+        <div class="logo-title">TRAINING TRACKER</div>
+        <div class="logo-sub">トレーニング & 体重管理</div>
+      </div>
     </div>
   </div>
   <div class="header-actions">
     <button class="btn btn-primary" id="btnAddTraining" disabled>💪 記録</button>
     <button class="btn btn-success" id="btnAddWeight" disabled>⚖️ 体重</button>
-    <button onclick="signOut()" style="background:none;border:1px solid var(--border);color:var(--muted);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-family:var(--font-body);" title="ログアウト">🚪</button>
   </div>
 </header>
 
-<!-- NAV -->
+<!-- NAV（旧nav・非表示） -->
 <nav class="nav">
   <button class="nav-btn active" data-tab="dashboard">📊 ダッシュボード</button>
   <button class="nav-btn" data-tab="users">👥 ユーザー</button>
@@ -1312,6 +1428,37 @@ function overlayClose(e, id) {
 // ════════════════════════════════════════
 //  TABS
 // ════════════════════════════════════════
+// ── ドロワー制御 ──
+function toggleDrawer() {
+  const drawer  = document.getElementById('drawer');
+  const overlay = document.getElementById('drawerOverlay');
+  const btn     = document.getElementById('hamburgerBtn');
+  const isOpen  = drawer.classList.contains('open');
+  if (isOpen) { closeDrawer(); }
+  else {
+    drawer.classList.add('open');
+    overlay.classList.add('open');
+    btn.classList.add('open');
+  }
+}
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.remove('open');
+  document.getElementById('hamburgerBtn').classList.remove('open');
+}
+
+// ── タブ切り替え（ドロワーボタン用） ──
+function switchTab(btn) {
+  document.querySelectorAll('.drawer-nav-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const tab = btn.dataset.tab;
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('sec-' + tab).classList.add('active');
+  if (tab === 'dashboard') renderDashboard();
+  closeDrawer();
+}
+
+// 旧nav-btnも対応
 document.querySelectorAll('.nav-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
