@@ -1352,27 +1352,49 @@ sb.auth.onAuthStateChange(async (event, session) => {
 // ════════════════════════════════════════
 //  SUPABASE DATA LAYER
 // ════════════════════════════════════════
+async function getToken() {
+  const { data: { session } } = await sb.auth.getSession();
+  return session ? session.access_token : null;
+}
+
+async function sbFetch(path, method='GET', body=null) {
+  const token = await getToken();
+  const opts = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON,
+      'Authorization': `Bearer ${token}`,
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, opts);
+  if (!res.ok && res.status !== 204) {
+    const txt = await res.text();
+    throw new Error(txt);
+  }
+  if (res.status === 204 || method === 'DELETE' || method === 'PATCH') return null;
+  return res.json();
+}
+
 async function loadAllData() {
   if (!currentUser) return;
   const oid = currentUser.id;
   try {
-    const { data: users, error: uErr } = await sb.from('users').select('*').eq('owner_id', oid).order('created_at');
-    if (uErr) console.error('users error:', uErr);
+    const users = await sbFetch(`users?owner_id=eq.${oid}&order=created_at`);
     db.users = (users||[]).map(u => ({
       id: u.id, name: u.name, height: u.height,
       targetWeight: u.target_weight, createdAt: u.created_at
     }));
 
-    const { data: trainings, error: tErr } = await sb.from('trainings').select('*').eq('owner_id', oid).order('date', { ascending: false });
-    if (tErr) console.error('trainings error:', tErr);
+    const trainings = await sbFetch(`trainings?owner_id=eq.${oid}&order=date.desc`);
     db.trainings = (trainings||[]).map(t => ({
       id: t.id, userId: t.user_id, type: t.type, date: t.date,
       location: t.location, address: t.address, duration: t.duration,
       cal: t.cal, postWeight: t.post_weight, memo: t.memo, createdAt: t.created_at
     }));
 
-    const { data: weights, error: wErr } = await sb.from('weights').select('*').eq('owner_id', oid).order('date', { ascending: false });
-    if (wErr) console.error('weights error:', wErr);
+    const weights = await sbFetch(`weights?owner_id=eq.${oid}&order=date.desc`);
     db.weights = (weights||[]).map(w => ({
       id: w.id, userId: w.user_id, weight: w.weight, date: w.date,
       fat: w.fat, memo: w.memo, createdAt: w.created_at
@@ -1385,71 +1407,62 @@ async function loadAllData() {
 }
 
 async function sbSaveUser(name, height, targetWeight) {
-  const { error } = await sb.from('users').insert({
-    owner_id: currentUser.id, name, height: height||null, target_weight: targetWeight||null
+  await sbFetch('users', 'POST', {
+    owner_id: currentUser.id, name,
+    height: height||null, target_weight: targetWeight||null
   });
-  if (error) { console.error('sbSaveUser error:', error); throw new Error(error.message); }
   await loadAllData();
 }
 
 async function sbUpdateUser(id, name, height, targetWeight) {
-  const { error } = await sb.from('users').update({
-    name, height: height||null, target_weight: targetWeight||null
-  }).eq('id', id).eq('owner_id', currentUser.id);
-  if (error) { console.error('sbUpdateUser error:', error); throw new Error(error.message); }
+  await sbFetch(`users?id=eq.${id}&owner_id=eq.${currentUser.id}`, 'PATCH',
+    { name, height: height||null, target_weight: targetWeight||null });
   await loadAllData();
 }
 
 async function sbDeleteUser(id) {
-  const { error } = await sb.from('users').delete().eq('id', id).eq('owner_id', currentUser.id);
-  if (error) { console.error('sbDeleteUser error:', error); throw new Error(error.message); }
+  await sbFetch(`users?id=eq.${id}&owner_id=eq.${currentUser.id}`, 'DELETE');
   await loadAllData();
 }
 
 async function sbSaveTraining(data) {
-  const { error } = await sb.from('trainings').insert({
+  await sbFetch('trainings', 'POST', {
     owner_id: currentUser.id, user_id: data.userId, type: data.type, date: data.date,
     location: data.location||null, address: data.address||null,
     duration: data.duration||null, cal: data.cal||null,
     post_weight: data.postWeight||null, memo: data.memo||null
   });
-  if (error) { console.error('sbSaveTraining error:', error); throw new Error(error.message); }
 }
 
 async function sbUpdateTraining(id, data) {
-  const { error } = await sb.from('trainings').update({
+  await sbFetch(`trainings?id=eq.${id}&owner_id=eq.${currentUser.id}`, 'PATCH', {
     type: data.type, date: data.date,
     location: data.location||null, address: data.address||null,
     duration: data.duration||null, cal: data.cal||null,
     post_weight: data.postWeight||null, memo: data.memo||null
-  }).eq('id', id).eq('owner_id', currentUser.id);
-  if (error) { console.error('sbUpdateTraining error:', error); throw new Error(error.message); }
+  });
 }
 
 async function sbDeleteTraining(id) {
-  const { error } = await sb.from('trainings').delete().eq('id', id).eq('owner_id', currentUser.id);
-  if (error) { console.error('sbDeleteTraining error:', error); throw new Error(error.message); }
+  await sbFetch(`trainings?id=eq.${id}&owner_id=eq.${currentUser.id}`, 'DELETE');
 }
 
 async function sbSaveWeight(data) {
-  const { error } = await sb.from('weights').insert({
+  await sbFetch('weights', 'POST', {
     owner_id: currentUser.id, user_id: data.userId, weight: data.weight, date: data.date,
     fat: data.fat||null, memo: data.memo||null
   });
-  if (error) { console.error('sbSaveWeight error:', error); throw new Error(error.message); }
 }
 
 async function sbUpdateWeight(id, data) {
-  const { error } = await sb.from('weights').update({
+  await sbFetch(`weights?id=eq.${id}&owner_id=eq.${currentUser.id}`, 'PATCH', {
     weight: data.weight, date: data.date,
     fat: data.fat||null, memo: data.memo||null
-  }).eq('id', id).eq('owner_id', currentUser.id);
-  if (error) { console.error('sbUpdateWeight error:', error); throw new Error(error.message); }
+  });
 }
 
 async function sbDeleteWeight(id) {
-  const { error } = await sb.from('weights').delete().eq('id', id).eq('owner_id', currentUser.id);
-  if (error) { console.error('sbDeleteWeight error:', error); throw new Error(error.message); }
+  await sbFetch(`weights?id=eq.${id}&owner_id=eq.${currentUser.id}`, 'DELETE');
 }
 
 // ════════════════════════════════════════
@@ -2185,8 +2198,7 @@ async function csvImport() {
 
   try {
     if (inserts.length > 0) {
-      const { error } = await sb.from('weights').insert(inserts);
-      if (error) throw error;
+      await sbFetch('weights', 'POST', inserts);
     }
     await loadAllData();
     closeModal('modalCsvImport');
