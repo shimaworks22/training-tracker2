@@ -1777,7 +1777,10 @@ function renderTrainings() {
     div.className = 'list-item';
     div.style.cssText = `border-left-color:${col}`;
     div.innerHTML = `
-      <div class="list-item-icon">${tp?.icon||'⚡'}</div>
+      <div class="list-item-icon" style="position:relative;width:44px;height:44px;flex-shrink:0;">
+        ${getIconHtml(t.userId, 44)}
+        <div style="position:absolute;bottom:-2px;right:-2px;background:var(--bg2);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;border:1px solid var(--border);">${tp?.icon||'⚡'}</div>
+      </div>
       <div class="list-item-body">
         <div class="list-item-title">
           ${esc(tp?.label||t.type)}
@@ -1944,7 +1947,10 @@ function renderWeights() {
     div.className = 'list-item';
     div.style.cssText = `border-left-color:${col}`;
     div.innerHTML = `
-      <div class="list-item-icon">⚖️</div>
+      <div class="list-item-icon" style="position:relative;width:44px;height:44px;flex-shrink:0;">
+        ${getIconHtml(w.userId, 44)}
+        <div style="position:absolute;bottom:-2px;right:-2px;background:var(--bg2);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;border:1px solid var(--border);">⚖️</div>
+      </div>
       <div class="list-item-body">
         <div class="list-item-title">
           <span class="badge" style="background:${col}22;color:${col};border-color:${col}44;">${esc(u?.name||'?')}</span>
