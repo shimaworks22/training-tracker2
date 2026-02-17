@@ -1331,7 +1331,8 @@ sb.auth.onAuthStateChange(async (event, session) => {
 // ログイン直後にprofilesが未作成なら自動で作る
 async function ensureProfile(user) {
   try {
-    const { data: existing } = await sb.from('profiles').select('id').eq('id', user.id).maybeSingle();
+    const { data: existingArr } = await sb.from('profiles').select('id').eq('id', user.id).limit(1);
+    const existing = existingArr && existingArr.length > 0 ? existingArr[0] : null;
     if (!existing) {
       // user_metadataのdisplay_nameを名前として使用
       const name = (user.user_metadata && user.user_metadata.display_name)
@@ -1352,7 +1353,8 @@ async function loadAllData() {
 
   try {
     // 自分のプロフィールをusersとして扱う
-    const { data: prof, error: profErr } = await sb.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
+    const { data: profArr, error: profErr } = await sb.from('profiles').select('*').eq('id', currentUser.id).limit(1);
+    const prof = profArr && profArr.length > 0 ? profArr[0] : null;
     if (profErr) console.error('profiles error:', profErr);
     if (prof) {
       db.users = [{ id: prof.id, name: prof.name, height: prof.height, targetWeight: prof.target_weight, createdAt: prof.created_at }];
@@ -1383,7 +1385,8 @@ async function loadAllData() {
 
 async function sbSaveUser(name, height, targetWeight) {
   // まず既存レコードを確認
-  const { data: existing } = await sb.from('profiles').select('id').eq('id', currentUser.id).maybeSingle();
+  const { data: existingArr } = await sb.from('profiles').select('id').eq('id', currentUser.id).limit(1);
+  const existing = existingArr && existingArr.length > 0 ? existingArr[0] : null;
 
   let error;
   if (existing) {
@@ -1408,13 +1411,14 @@ async function sbSaveUser(name, height, targetWeight) {
 }
 
 async function sbSaveTraining(data) {
-  const { data: row, error } = await sb.from('trainings').insert({
+  const { data: rowArr, error } = await sb.from('trainings').insert({
     user_id: currentUser.id, type: data.type, date: data.date,
     location: data.location||null, address: data.address||null,
     duration: data.duration||null, cal: data.cal||null,
     post_weight: data.postWeight||null, memo: data.memo||null
-  }).select().single();
+  }).select().limit(1);
   if (error) throw error;
+  const row = rowArr && rowArr[0] ? rowArr[0] : null;
   return row;
 }
 
@@ -1434,12 +1438,13 @@ async function sbDeleteTraining(id) {
 }
 
 async function sbSaveWeight(data) {
-  const { data: row, error } = await sb.from('weights').insert({
+  const { data: rowArr2, error } = await sb.from('weights').insert({
     user_id: currentUser.id, weight: data.weight, date: data.date,
     fat: data.fat||null, memo: data.memo||null
-  }).select().single();
+  }).select().limit(1);
   if (error) throw error;
-  return row;
+  const row2 = rowArr2 && rowArr2[0] ? rowArr2[0] : null;
+  return row2;
 }
 
 async function sbUpdateWeight(id, data) {
