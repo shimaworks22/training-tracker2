@@ -807,25 +807,27 @@
   <!-- ══════════════════ DASHBOARD ══════════════════ -->
   <section id="sec-dashboard" class="section active">
     <div class="stats-grid" id="statsGrid"></div>
-    <div class="charts-row">
-      <div class="card" id="chartTrendWrap">
-        <div class="card-title">📈 月別トレーニング推移</div>
-        <canvas id="chartTrend" height="140"></canvas>
-        <div id="chartTrendEmpty" class="empty" style="display:none; padding:30px 10px;">
-          <div>データがありません</div>
-        </div>
+    <div class="card" style="margin-bottom:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+        <div class="card-title" style="margin:0;">💪 月別トレーニング回数</div>
+        <select id="dashMonthSelect" onchange="renderDashboard()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;font-family:var(--font-body);font-size:13px;cursor:pointer;"></select>
       </div>
+      <div id="dashTrainBars">
+        <div class="empty" style="padding:20px 0;color:var(--muted);">データがありません</div>
+      </div>
+    </div>
+    <div class="charts-row">
       <div class="card">
         <div class="card-title">🎯 種別内訳</div>
         <div class="type-bar-wrap" id="typeBars">
           <div class="empty" style="padding:20px 10px; color:var(--muted);">データがありません</div>
         </div>
       </div>
-    </div>
-    <div class="card">
-      <div class="card-title">⚖️ ユーザー別 体重進捗</div>
-      <div class="weight-user-grid" id="weightUserGrid">
-        <div class="empty" style="padding:20px; color:var(--muted);">ユーザーを登録してください</div>
+      <div class="card">
+        <div class="card-title">⚖️ ユーザー別 体重進捗</div>
+        <div class="weight-user-grid" id="weightUserGrid">
+          <div class="empty" style="padding:20px; color:var(--muted);">ユーザーを登録してください</div>
+        </div>
       </div>
     </div>
   </section>
@@ -1985,75 +1987,57 @@ let trendChart = null;
 
 function renderDashboard() {
   const thisMonth = new Date().toISOString().slice(0,7);
-  const monthTs   = db.trainings.filter(t => t.date.startsWith(thisMonth)).length;
   const totalMin  = db.trainings.reduce((s,t) => s + (t.duration||0), 0);
-  const totalKm   = db.trainings.reduce((s,t) => s + (t.distance||0), 0);
 
-  // Stats
+  // ── 月セレクターを構築（データのある月 + 当月）──
+  const monthSel = document.getElementById('dashMonthSelect');
+  const existingMonths = [...new Set(db.trainings.map(t => t.date.slice(0,7)))].sort().reverse();
+  if (!existingMonths.includes(thisMonth)) existingMonths.unshift(thisMonth);
+  // 現在の選択値を保持（なければ当月）
+  const prevVal = monthSel.value || thisMonth;
+  monthSel.innerHTML = existingMonths.map(m => {
+    const [y, mo] = m.split('-');
+    return `<option value="${m}" ${m===prevVal?'selected':''}>${y}年${parseInt(mo)}月</option>`;
+  }).join('');
+  const selMonth = monthSel.value || thisMonth;
+
+  // ── Stats（選択月ベース）──
+  const monthTs = db.trainings.filter(t => t.date.startsWith(selMonth)).length;
+  const isThisMonth = selMonth === thisMonth;
   document.getElementById('statsGrid').innerHTML = `
     <div class="stat-card c-accent"><div class="stat-icon">👥</div><div class="stat-label">ユーザー数</div><div class="stat-value">${db.users.length}</div></div>
     <div class="stat-card c-red"><div class="stat-icon">💪</div><div class="stat-label">総トレーニング</div><div class="stat-value">${db.trainings.length}</div></div>
-    <div class="stat-card c-green"><div class="stat-icon">📅</div><div class="stat-label">今月</div><div class="stat-value">${monthTs}</div><div class="stat-sub">回</div></div>
+    <div class="stat-card c-green"><div class="stat-icon">📅</div><div class="stat-label">${isThisMonth?'今月':selMonth.replace('-','年')+'月'}</div><div class="stat-value">${monthTs}</div><div class="stat-sub">回</div></div>
     <div class="stat-card c-gold"><div class="stat-icon">⏱️</div><div class="stat-label">総時間</div><div class="stat-value">${totalMin ? (totalMin/60).toFixed(1) : 0}</div><div class="stat-sub">時間</div></div>
   `;
 
-  // Monthly Trend Chart（ユーザー別積み上げ棒グラフ）
-  const months = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(); d.setMonth(d.getMonth() - i);
-    months.push({ m: d.toISOString().slice(0, 7), lbl: `${d.getMonth() + 1}月` });
-  }
+  // ── 横棒グラフ（選択月のユーザー別トレーニング回数）──
+  const barsEl = document.getElementById('dashTrainBars');
+  const userCounts = db.users.map((u, idx) => ({
+    user: u,
+    count: db.trainings.filter(t => t.userId === u.id && t.date.slice(0,7) === selMonth).length,
+    color: USER_COLORS[idx % USER_COLORS.length]
+  })).sort((a,b) => b.count - a.count);
+  const maxCount = Math.max(...userCounts.map(u => u.count), 1);
 
-  // ユーザーごとに月別カウント
-  const userDatasets = db.users.map((u, idx) => {
-    const data = months.map(({ m }) =>
-      db.trainings.filter(t => t.userId === u.id && t.date.slice(0, 7) === m).length
-    );
-    return { label: u.name, data, backgroundColor: USER_COLORS[idx % USER_COLORS.length] + 'CC',
-             borderColor: USER_COLORS[idx % USER_COLORS.length], borderWidth: 1, borderRadius: 3 };
-  });
-
-  const hasData = userDatasets.some(ds => ds.data.some(v => v > 0));
-  if (hasData) {
-    document.getElementById('chartTrendEmpty').style.display = 'none';
-    if (trendChart) trendChart.destroy();
-    const ctx = document.getElementById('chartTrend').getContext('2d');
-    // Y軸の最大値（整数の天井）
-    const maxVal = Math.max(...userDatasets.flatMap(ds => ds.data), 1);
-    trendChart = new Chart(ctx, {
-      type: 'bar',
-      data: { labels: months.map(m => m.lbl), datasets: userDatasets },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: {
-            display: db.users.length > 1,
-            labels: { color: '#8899A6', font: { size: 11 }, boxWidth: 12 }
-          }
-        },
-        scales: {
-          x: {
-            stacked: true,
-            ticks: { color: '#4A6578', font: { size: 11 } },
-            grid: { display: false }
-          },
-          y: {
-            stacked: true,
-            beginAtZero: true,
-            max: maxVal + 1,
-            ticks: {
-              color: '#4A6578',
-              font: { size: 11 },
-              stepSize: 1,
-              callback: v => Number.isInteger(v) ? v : null
-            },
-            grid: { color: '#1A3044' }
-          }
-        }
-      }
-    });
+  if (!db.users.length) {
+    barsEl.innerHTML = `<div class="empty" style="padding:20px 0;color:var(--muted);">ユーザーを登録してください</div>`;
+  } else if (userCounts.every(u => u.count === 0)) {
+    barsEl.innerHTML = `<div class="empty" style="padding:20px 0;color:var(--muted);">この月のデータがありません</div>`;
   } else {
-    document.getElementById('chartTrendEmpty').style.display = 'block';
+    barsEl.innerHTML = userCounts.map(({user, count, color}) => `
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+        <div style="flex-shrink:0;">${getIconHtml(user.id, 36)}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+            <span style="font-size:13px;font-weight:600;color:var(--text);">${esc(user.name)}</span>
+            <span style="font-family:var(--font-display);font-size:16px;font-weight:800;color:${color};">${count}<span style="font-size:11px;color:var(--muted);margin-left:2px;">回</span></span>
+          </div>
+          <div style="height:10px;background:var(--bg3);border-radius:99px;overflow:hidden;">
+            <div style="height:100%;width:${count===0?0:(count/maxCount*100).toFixed(0)}%;background:${color};border-radius:99px;transition:width 0.4s ease;"></div>
+          </div>
+        </div>
+      </div>`).join('');
   }
 
   // Type Bars
