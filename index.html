@@ -758,13 +758,9 @@
         <button id="tabSignup" onclick="switchAuthTab('signup')" style="flex:1; padding:8px; border:none; border-radius:6px; cursor:pointer; font-family:var(--font-body); font-size:13px; font-weight:600; background:transparent; color:var(--muted); transition:all 0.2s;">新規登録</button>
       </div>
       <div id="authError" style="display:none; background:rgba(255,77,106,0.12); border:1px solid rgba(255,77,106,0.3); border-radius:8px; padding:10px 12px; font-size:12px; color:var(--red); margin-bottom:16px;"></div>
-      <div class="field" id="signupNameField" style="display:none;">
-        <label>表示名 <span class="req">*</span></label>
-        <input type="text" id="authName" placeholder="例：田中 太郎">
-      </div>
       <div class="field">
-        <label>メールアドレス <span class="req">*</span></label>
-        <input type="email" id="authEmail" placeholder="example@email.com">
+        <label>サイトID <span class="req">*</span></label>
+        <input type="text" id="authEmail" placeholder="例：myteam@training.com" autocomplete="username">
       </div>
       <div class="field">
         <label>パスワード <span class="req">*</span></label>
@@ -773,7 +769,7 @@
       <button id="authSubmitBtn" onclick="authSubmit()" style="width:100%; padding:12px; background:var(--accent); color:#000; border:none; border-radius:8px; font-family:var(--font-body); font-size:14px; font-weight:700; cursor:pointer; margin-top:8px;">ログイン</button>
       <div id="authLoading" style="display:none; text-align:center; padding:12px; font-size:13px; color:var(--muted);">⏳ 処理中...</div>
     </div>
-    <div style="text-align:center; margin-top:16px; font-size:11px; color:var(--muted2);">データはSupabaseに安全に保存されます</div>
+    <div style="text-align:center; margin-top:16px; font-size:11px; color:var(--muted2);">サイトIDとパスワードを共有してチームで使えます</div>
   </div>
 </div>
 
@@ -1405,8 +1401,7 @@ function switchAuthTab(tab) {
   const isLogin = tab === 'login';
   document.getElementById('tabLogin').style.cssText   = isLogin ? 'flex:1;padding:8px;border:none;border-radius:6px;cursor:pointer;font-family:var(--font-body);font-size:13px;font-weight:600;background:var(--accent);color:#000;' : 'flex:1;padding:8px;border:none;border-radius:6px;cursor:pointer;font-family:var(--font-body);font-size:13px;font-weight:600;background:transparent;color:var(--muted);';
   document.getElementById('tabSignup').style.cssText  = !isLogin ? 'flex:1;padding:8px;border:none;border-radius:6px;cursor:pointer;font-family:var(--font-body);font-size:13px;font-weight:600;background:var(--accent);color:#000;' : 'flex:1;padding:8px;border:none;border-radius:6px;cursor:pointer;font-family:var(--font-body);font-size:13px;font-weight:600;background:transparent;color:var(--muted);';
-  document.getElementById('signupNameField').style.display = isLogin ? 'none' : 'block';
-  document.getElementById('authSubmitBtn').textContent = isLogin ? 'ログイン' : '登録する';
+  document.getElementById('authSubmitBtn').textContent = isLogin ? 'ログイン' : '新規登録する';
   document.getElementById('authError').style.display  = 'none';
 }
 
@@ -1418,11 +1413,9 @@ function showAuthError(msg) {
 async function authSubmit() {
   const email    = document.getElementById('authEmail').value.trim();
   const password = document.getElementById('authPassword').value;
-  const name     = document.getElementById('authName').value.trim();
   const isLogin  = document.getElementById('authSubmitBtn').textContent === 'ログイン';
 
-  if (!email || !password) { showAuthError('メールとパスワードを入力してください'); return; }
-  if (!isLogin && !name)   { showAuthError('表示名を入力してください'); return; }
+  if (!email || !password) { showAuthError('サイトIDとパスワードを入力してください'); return; }
 
   document.getElementById('authLoading').style.display = 'block';
   document.getElementById('authSubmitBtn').style.display = 'none';
@@ -1433,25 +1426,19 @@ async function authSubmit() {
       const { data, error } = await sb.auth.signInWithPassword({ email, password });
       if (error) throw error;
     } else {
-      // サインアップ：名前をuser_metadataに保存
-      const { data, error } = await sb.auth.signUp({
-        email, password,
-        options: { data: { display_name: name } }
-      });
+      const { data, error } = await sb.auth.signUp({ email, password });
       if (error) throw error;
       if (!data.session) {
-        // メール確認が必要な場合
         document.getElementById('authLoading').style.display = 'none';
         document.getElementById('authSubmitBtn').style.display = 'block';
         showAuthError('確認メールを送信しました。メールのリンクをクリックしてください。');
         return;
       }
-      // セッションがある場合はonAuthStateChangeが自動でprofiles作成まで行う
     }
   } catch(e) {
     const msg = e.message || 'エラーが発生しました';
-    const jpMsg = msg.includes('Invalid login') ? 'メールまたはパスワードが違います'
-                : msg.includes('already registered') ? 'このメールは既に登録されています'
+    const jpMsg = msg.includes('Invalid login') ? 'サイトIDまたはパスワードが違います'
+                : msg.includes('already registered') ? 'このサイトIDは既に登録されています'
                 : msg.includes('Password should') ? 'パスワードは6文字以上にしてください'
                 : msg;
     showAuthError(jpMsg);
@@ -1699,11 +1686,7 @@ function openEditUser(id) {
 // saveUser: 新規プロフィール作成（名前をmetadataから自動セット）
 function openModalUser() {
   // 名前をSupabaseのuser_metadataから自動入力
-  if (currentUser && currentUser.user_metadata && currentUser.user_metadata.display_name) {
-    document.getElementById('u_name').value = currentUser.user_metadata.display_name;
-  } else if (currentUser && currentUser.email) {
-    document.getElementById('u_name').value = currentUser.email.split('@')[0];
-  }
+
   openModal('modalUser');
 }
 
