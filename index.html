@@ -1294,7 +1294,10 @@ function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 function overlayClose(e, id) { if (e.target.classList.contains('overlay')) closeModal(id); }
 
-// アイコン画像プレビュー（Base64に変換して表示）
+// ── アイコン関連（Supabase Storage） ──
+const AVATAR_BUCKET = 'avatars';
+
+// プレビュー表示（ファイルをinputから読み込み）
 function previewIcon(previewId, input) {
   const file = input.files[0];
   if (!file) return;
@@ -1307,24 +1310,62 @@ function previewIcon(previewId, input) {
     img.src = e.target.result;
     img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
     el.appendChild(img);
-    el.dataset.base64 = e.target.result;
+    el.dataset.file = 'pending'; // アップロード待ち
+    el._pendingFile = file;      // Fileオブジェクトを保持
   };
   reader.readAsDataURL(file);
 }
 
-// アイコンBase64をユーザーごとにlocalStorageに保存・取得
-function saveIconLocally(userId, base64) {
-  try { localStorage.setItem('icon_' + userId, base64); } catch(e) {}
+// Supabase StorageにアップロードしてURLを返す
+async function uploadAvatar(userId, file) {
+  const ext = file.name.split('.').pop() || 'jpg';
+  const path = `${userId}.${ext}`;
+  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${AVATAR_BUCKET}/${path}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': file.type || 'image/jpeg',
+      'x-upsert': 'true'
+    },
+    body: file
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error('アバターアップロード失敗: ' + txt);
+  }
+  return `${SUPABASE_URL}/storage/v1/object/public/${AVATAR_BUCKET}/${path}?t=${Date.now()}`;
 }
-function loadIconLocally(userId) {
-  try { return localStorage.getItem('icon_' + userId); } catch(e) { return null; }
+
+// アイコンURLをlocalStorageにキャッシュ
+function cacheIconUrl(userId, url) {
+  try { localStorage.setItem('icon_url_' + userId, url); } catch(e) {}
 }
+function getCachedIconUrl(userId) {
+  try { return localStorage.getItem('icon_url_' + userId); } catch(e) { return null; }
+}
+
+// アイコンHTML生成（キャッシュURLを使用）
 function getIconHtml(userId, size=40) {
-  const icon = loadIconLocally(userId);
-  if (icon) {
-    return `<img src="${icon}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;">`;
+  const url = getCachedIconUrl(userId);
+  if (url) {
+    return `<img src="${url}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;" onerror="this.parentElement.innerHTML='<div style=\'width:${size}px;height:${size}px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:${Math.floor(size*0.5)}px;\'>👤</div>'">`;
   }
   return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:${Math.floor(size*0.5)}px;">👤</div>`;
+}
+
+// 全ユーザーのアバターURLをSupabaseから取得してキャッシュ
+async function refreshAvatarCache() {
+  if (!db.users.length) return;
+  for (const u of db.users) {
+    // jpg/png/webpを試す
+    for (const ext of ['jpg','png','jpeg','webp']) {
+      const url = `${SUPABASE_URL}/storage/v1/object/public/${AVATAR_BUCKET}/${u.id}.${ext}`;
+      try {
+        const res = await fetch(url, { method: 'HEAD' });
+        if (res.ok) { cacheIconUrl(u.id, url + '?t=' + Date.now()); break; }
+      } catch(e) {}
+    }
+  }
 }
 
 // ════════════════════════════════════════
@@ -1519,6 +1560,7 @@ async function loadAllData() {
     db.likes = (likes||[]).map(l => ({ id: l.id, trainingId: l.training_id, userId: l.user_id }));
 
     console.log('loadAllData:', { users: db.users.length, trainings: db.trainings.length, weights: db.weights.length, likes: db.likes.length });
+    await refreshAvatarCache();
   } catch(e) {
     console.error('loadAllData failed:', e);
   }
@@ -1611,12 +1653,16 @@ async function saveUser() {
   if (btn) { btn.textContent = '保存中...'; btn.disabled = true; }
   try {
     await sbSaveUser(name, height, target);
-    // アイコン画像をlocalStorageに保存（最後に追加されたユーザーのID）
+    // アイコン画像をSupabase Storageにアップロード
     const iconEl = document.getElementById('u_icon_preview');
-    if (iconEl && iconEl.dataset.base64 && db.users.length > 0) {
+    if (iconEl && iconEl._pendingFile && db.users.length > 0) {
       const lastUser = db.users[db.users.length - 1];
-      saveIconLocally(lastUser.id, iconEl.dataset.base64);
-      delete iconEl.dataset.base64;
+      try {
+        const url = await uploadAvatar(lastUser.id, iconEl._pendingFile);
+        cacheIconUrl(lastUser.id, url);
+      } catch(e) { console.error('avatar upload:', e); }
+      delete iconEl._pendingFile;
+      delete iconEl.dataset.file;
     }
     closeModal('modalUser');
     ['u_name','u_height','u_target'].forEach(id => document.getElementById(id).value = '');
@@ -1636,16 +1682,17 @@ function openEditUser(id) {
   document.getElementById('eu_name').value = u.name;
   document.getElementById('eu_height').value = u.height || '';
   document.getElementById('eu_target').value = u.targetWeight || '';
-  // 既存アイコンを表示
+  // 既存アイコンを表示（Supabaseキャッシュから）
   const iconEl = document.getElementById('eu_icon_preview');
-  const existing = loadIconLocally(id);
-  if (existing) {
-    iconEl.innerHTML = `<img src="${existing}" style="width:100%;height:100%;object-fit:cover;">`;
+  const existingUrl = getCachedIconUrl(id);
+  if (existingUrl) {
+    iconEl.innerHTML = `<img src="${existingUrl}" style="width:100%;height:100%;object-fit:cover;">`;
     iconEl.style.padding = '0';
   } else {
     iconEl.innerHTML = '👤';
   }
-  delete iconEl.dataset.base64;
+  delete iconEl._pendingFile;
+  delete iconEl.dataset.file;
   openModal('modalEditUser');
 }
 
@@ -1668,11 +1715,15 @@ async function updateUser() {
   const target = parseFloat(document.getElementById('eu_target').value) || null;
   try {
     await sbUpdateUser(id, name, height, target);
-    // アイコン更新
+    // アイコン更新（Supabase Storage）
     const iconEl = document.getElementById('eu_icon_preview');
-    if (iconEl && iconEl.dataset.base64) {
-      saveIconLocally(id, iconEl.dataset.base64);
-      delete iconEl.dataset.base64;
+    if (iconEl && iconEl._pendingFile) {
+      try {
+        const url = await uploadAvatar(id, iconEl._pendingFile);
+        cacheIconUrl(id, url);
+      } catch(e) { console.error('avatar update:', e); }
+      delete iconEl._pendingFile;
+      delete iconEl.dataset.file;
     }
     closeModal('modalEditUser');
     updateAll(); showToast('✅ ユーザー情報を更新しました');
