@@ -766,12 +766,12 @@
     <button class="drawer-nav-btn" data-tab="weights" onclick="switchTab(this)">
       <span class="nav-icon">⚖️</span> 体重
     </button>
+    <div style="padding: 12px 20px 4px;">
+      <button class="drawer-logout-btn" onclick="signOut()">
+        <span>🚪</span> ログアウト
+      </button>
+    </div>
   </nav>
-  <div class="drawer-footer">
-    <button class="drawer-logout-btn" onclick="signOut()">
-      <span>🚪</span> ログアウト
-    </button>
-  </div>
 </div>
 
 <!-- HEADER -->
@@ -887,6 +887,11 @@
 <div class="overlay" id="modalUser" onclick="overlayClose(event, 'modalUser')">
   <div class="modal">
     <div class="modal-title">👤 ユーザー登録</div>
+    <div class="field" style="text-align:center;">
+      <div id="u_icon_preview" onclick="document.getElementById('u_icon_input').click()" style="width:80px;height:80px;border-radius:50%;background:var(--bg3);border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;cursor:pointer;overflow:hidden;font-size:32px;">👤</div>
+      <div style="font-size:11px;color:var(--muted);">タップして写真を選択</div>
+      <input type="file" id="u_icon_input" accept="image/*" style="display:none;" onchange="previewIcon('u_icon_preview', this)">
+    </div>
     <div class="field">
       <label>名前 <span class="req">*</span></label>
       <input type="text" id="u_name" placeholder="例：田中 太郎">
@@ -913,6 +918,11 @@
   <div class="modal">
     <div class="modal-title" style="color:var(--gold);">✏️ ユーザー編集</div>
     <input type="hidden" id="eu_id">
+    <div class="field" style="text-align:center;">
+      <div id="eu_icon_preview" onclick="document.getElementById('eu_icon_input').click()" style="width:80px;height:80px;border-radius:50%;background:var(--bg3);border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;cursor:pointer;overflow:hidden;font-size:32px;">👤</div>
+      <div style="font-size:11px;color:var(--muted);">タップして写真を変更</div>
+      <input type="file" id="eu_icon_input" accept="image/*" style="display:none;" onchange="previewIcon('eu_icon_preview', this)">
+    </div>
     <div class="field">
       <label>名前 <span class="req">*</span></label>
       <input type="text" id="eu_name">
@@ -1220,6 +1230,39 @@ function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 function overlayClose(e, id) { if (e.target.classList.contains('overlay')) closeModal(id); }
 
+// アイコン画像プレビュー（Base64に変換して表示）
+function previewIcon(previewId, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const el = document.getElementById(previewId);
+    el.innerHTML = '';
+    el.style.padding = '0';
+    const img = document.createElement('img');
+    img.src = e.target.result;
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+    el.appendChild(img);
+    el.dataset.base64 = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// アイコンBase64をユーザーごとにlocalStorageに保存・取得
+function saveIconLocally(userId, base64) {
+  try { localStorage.setItem('icon_' + userId, base64); } catch(e) {}
+}
+function loadIconLocally(userId) {
+  try { return localStorage.getItem('icon_' + userId); } catch(e) { return null; }
+}
+function getIconHtml(userId, size=40) {
+  const icon = loadIconLocally(userId);
+  if (icon) {
+    return `<img src="${icon}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;">`;
+  }
+  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:${Math.floor(size*0.5)}px;">👤</div>`;
+}
+
 // ════════════════════════════════════════
 //  SUPABASE CONFIG
 // ════════════════════════════════════════
@@ -1487,8 +1530,17 @@ async function saveUser() {
   if (btn) { btn.textContent = '保存中...'; btn.disabled = true; }
   try {
     await sbSaveUser(name, height, target);
+    // アイコン画像をlocalStorageに保存（最後に追加されたユーザーのID）
+    const iconEl = document.getElementById('u_icon_preview');
+    if (iconEl && iconEl.dataset.base64 && db.users.length > 0) {
+      const lastUser = db.users[db.users.length - 1];
+      saveIconLocally(lastUser.id, iconEl.dataset.base64);
+      delete iconEl.dataset.base64;
+    }
     closeModal('modalUser');
     ['u_name','u_height','u_target'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('u_icon_preview').innerHTML = '👤';
+    document.getElementById('u_icon_preview').style.padding = '';
     updateAll(); showToast('✅ ユーザーを登録しました');
   } catch(e) {
     alert('エラー: ' + e.message);
@@ -1503,6 +1555,16 @@ function openEditUser(id) {
   document.getElementById('eu_name').value = u.name;
   document.getElementById('eu_height').value = u.height || '';
   document.getElementById('eu_target').value = u.targetWeight || '';
+  // 既存アイコンを表示
+  const iconEl = document.getElementById('eu_icon_preview');
+  const existing = loadIconLocally(id);
+  if (existing) {
+    iconEl.innerHTML = `<img src="${existing}" style="width:100%;height:100%;object-fit:cover;">`;
+    iconEl.style.padding = '0';
+  } else {
+    iconEl.innerHTML = '👤';
+  }
+  delete iconEl.dataset.base64;
   openModal('modalEditUser');
 }
 
@@ -1525,6 +1587,12 @@ async function updateUser() {
   const target = parseFloat(document.getElementById('eu_target').value) || null;
   try {
     await sbUpdateUser(id, name, height, target);
+    // アイコン更新
+    const iconEl = document.getElementById('eu_icon_preview');
+    if (iconEl && iconEl.dataset.base64) {
+      saveIconLocally(id, iconEl.dataset.base64);
+      delete iconEl.dataset.base64;
+    }
     closeModal('modalEditUser');
     updateAll(); showToast('✅ ユーザー情報を更新しました');
   } catch(e) { alert('エラー: ' + e.message); }
@@ -1555,9 +1623,12 @@ function renderUsers() {
       : 0;
     return `<div class="user-card" style="border-top-color:${color}">
       <div class="user-card-header">
-        <div>
-          <div class="user-name">${esc(u.name)}</div>
-          ${u.height ? `<div class="user-sub">身長 ${u.height} cm</div>` : ''}
+        <div style="display:flex;align-items:center;gap:12px;">
+          ${getIconHtml(u.id, 44)}
+          <div>
+            <div class="user-name">${esc(u.name)}</div>
+            ${u.height ? `<div class="user-sub">身長 ${u.height} cm</div>` : ''}
+          </div>
         </div>
         <div style="display:flex;gap:6px;">
           <button class="btn btn-sm" style="background:${color}22;color:${color};border:1px solid ${color}44;" onclick="openEditUser('${u.id}')">編集</button>
