@@ -755,7 +755,7 @@
       <span class="nav-icon">📊</span> ダッシュボード
     </button>
     <button class="drawer-nav-btn" data-tab="users" onclick="switchTab(this)">
-      <span class="nav-icon">👥</span> ユーザー
+      <span class="nav-icon">👤</span> プロフィール
     </button>
     <button class="drawer-nav-btn" data-tab="trainings" onclick="switchTab(this)">
       <span class="nav-icon">💪</span> トレーニング
@@ -830,8 +830,7 @@
   <!-- ══════════════════ USERS ══════════════════ -->
   <section id="sec-users" class="section">
     <div class="section-header">
-      <span class="section-heading">ユーザー管理</span>
-      <button class="btn btn-primary" onclick="openModal('modalUser')">+ ユーザー追加</button>
+      <span class="section-heading">プロフィール</span>
     </div>
     <div id="userGrid" class="user-grid"></div>
   </section>
@@ -1262,9 +1261,20 @@ async function authSubmit() {
     } else {
       const { data, error } = await sb.auth.signUp({ email, password });
       if (error) throw error;
-      // プロフィール作成
+      // 新規登録後：プロフィールを自動作成（登録名でユーザー登録）
       if (data.user) {
-        await sb.from('profiles').upsert({ id: data.user.id, name: name });
+        await sb.from('profiles').upsert(
+          { id: data.user.id, name: name, height: null, target_weight: null },
+          { onConflict: 'id' }
+        );
+        // メール確認なしの場合はそのままサインイン
+        if (!data.session) {
+          // メール確認が必要な場合
+          document.getElementById('authLoading').style.display = 'none';
+          document.getElementById('authSubmitBtn').style.display = 'block';
+          showAuthError('確認メールを送信しました。メールのリンクをクリックしてください。');
+          return;
+        }
       }
     }
   } catch(e) {
@@ -1285,14 +1295,23 @@ async function signOut() {
 }
 
 // 認証状態の監視
+let _lastUserId = null; // 同じユーザーで二重ロードを防ぐ
 sb.auth.onAuthStateChange(async (event, session) => {
-  if (session) {
+  if (session && session.user) {
+    // SIGNED_IN / TOKEN_REFRESHED / INITIAL_SESSION で発火するが
+    // 同じユーザーの場合は再ロードしない（TOKEN_REFRESH除外）
+    const uid = session.user.id;
+    if (event === 'SIGNED_OUT') return;
     currentUser = session.user;
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('appScreen').style.display   = 'block';
-    await loadAllData();
-    updateAll();
+    if (_lastUserId !== uid || event === 'SIGNED_IN') {
+      _lastUserId = uid;
+      await loadAllData();
+      updateAll();
+    }
   } else {
+    _lastUserId = null;
     currentUser = null;
     db = { users:[], trainings:[], weights:[] };
     document.getElementById('loginScreen').style.display = 'flex';
@@ -1307,9 +1326,11 @@ async function loadAllData() {
   if (!currentUser) return;
 
   // 自分のプロフィールをusersとして扱う
-  const { data: prof } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+  const { data: prof } = await sb.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
   if (prof) {
     db.users = [{ id: prof.id, name: prof.name, height: prof.height, targetWeight: prof.target_weight, createdAt: prof.created_at }];
+  } else {
+    db.users = [];
   }
 
   const { data: trainings } = await sb.from('trainings').select('*').eq('user_id', currentUser.id).order('date', { ascending: false });
@@ -1327,9 +1348,10 @@ async function loadAllData() {
 }
 
 async function sbSaveUser(name, height, targetWeight) {
-  const { error } = await sb.from('profiles').upsert({
-    id: currentUser.id, name, height: height||null, target_weight: targetWeight||null
-  });
+  const { error } = await sb.from('profiles').upsert(
+    { id: currentUser.id, name, height: height||null, target_weight: targetWeight||null },
+    { onConflict: 'id' }
+  );
   if (error) throw error;
   await loadAllData();
 }
@@ -1519,7 +1541,7 @@ async function deleteUser(id) {
 function renderUsers() {
   const grid = document.getElementById('userGrid');
   if (!db.users.length) {
-    grid.innerHTML = `<div class="empty"><div class="empty-icon">👤</div><div class="empty-text">ユーザーを追加してください</div></div>`;
+    grid.innerHTML = `<div class="empty"><div class="empty-icon">👤</div><div class="empty-text">プロフィールを設定してください</div></div>`;
     return;
   }
   grid.innerHTML = db.users.map((u,i) => {
@@ -2448,13 +2470,22 @@ document.querySelectorAll('[onclick*="modalWeight"]').forEach(btn => {
 // ════════════════════════════════════════
 dpInit('dp_t', today());
 dpInit('dp_w', today());
-// 初回認証チェック（onAuthStateChangeが自動でloadAllData+updateAllを呼ぶ）
-sb.auth.getSession().then(({ data: { session } }) => {
-  if (!session) {
+
+// 初回ロード：既存セッションがあればデータを取得して表示
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session && session.user) {
+    currentUser = session.user;
+    _lastUserId = session.user.id;
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display   = 'block';
+    await loadAllData();
+    updateAll();
+  } else {
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('appScreen').style.display   = 'none';
   }
-});
+})();
 </script>
 </div><!-- /appScreen -->
 </body>
