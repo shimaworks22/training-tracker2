@@ -847,41 +847,49 @@
   <!-- ══════════════════ DASHBOARD ══════════════════ -->
   <section id="sec-dashboard" class="section active">
     <div class="stats-grid" id="statsGrid"></div>
-    <div class="card" style="margin-bottom:20px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
-        <div class="card-title" style="margin:0;">💪 月別トレーニング回数</div>
-        <select id="dashMonthSelect" onchange="renderDashboard()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;font-family:var(--font-body);font-size:13px;cursor:pointer;"></select>
+
+    <!-- 月セレクター（共通） -->
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+      <select id="dashMonthSelect" onchange="renderDashboard()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 14px;border-radius:8px;font-family:var(--font-body);font-size:13px;cursor:pointer;"></select>
+    </div>
+
+    <!-- Row1: トレーニング回数 + 消費カロリー -->
+    <div class="dash-row2" style="margin-bottom:20px;">
+      <div class="card">
+        <div class="card-title">💪 月別トレーニング回数</div>
+        <div id="dashTrainBars"><div class="empty" style="padding:16px 0;color:var(--muted);">データがありません</div></div>
       </div>
-      <div id="dashTrainBars">
-        <div class="empty" style="padding:20px 0;color:var(--muted);">データがありません</div>
+      <div class="card">
+        <div class="card-title">🔥 月別消費カロリー</div>
+        <div id="dashCalBars"><div class="empty" style="padding:16px 0;color:var(--muted);">データがありません</div></div>
       </div>
     </div>
-    <div class="card" style="margin-bottom:20px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
-        <div class="card-title" style="margin:0;">🔥 月別消費カロリー</div>
-      </div>
-      <div id="dashCalBars">
-        <div class="empty" style="padding:20px 0;color:var(--muted);">データがありません</div>
-      </div>
-    </div>
-    <div class="charts-row">
+
+    <!-- Row2: 種別内訳 + 体重進捗 -->
+    <div class="charts-row" style="margin-bottom:20px;">
       <div class="card">
         <div class="card-title">🎯 種別内訳</div>
         <div class="type-bar-wrap" id="typeBars">
-          <div class="empty" style="padding:20px 10px; color:var(--muted);">データがありません</div>
+          <div class="empty" style="padding:20px 10px;color:var(--muted);">データがありません</div>
         </div>
       </div>
       <div class="card">
         <div class="card-title">⚖️ ユーザー別 体重進捗</div>
         <div class="weight-user-grid" id="weightUserGrid">
-          <div class="empty" style="padding:20px; color:var(--muted);">ユーザーを登録してください</div>
+          <div class="empty" style="padding:20px;color:var(--muted);">ユーザーを登録してください</div>
         </div>
       </div>
     </div>
-    <div class="card" style="margin-top:20px;">
-      <div class="card-title">👍 月間いいねランキング</div>
-      <div id="dashLikeRanking">
-        <div class="empty" style="padding:20px 0;color:var(--muted);">データがありません</div>
+
+    <!-- Row3: いいねランキング + 最新トレーニング -->
+    <div class="dash-row2">
+      <div class="card">
+        <div class="card-title">👍 月間いいねランキング</div>
+        <div id="dashLikeRanking"><div class="empty" style="padding:16px 0;color:var(--muted);">データがありません</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">🏃 最新トレーニング</div>
+        <div id="dashLatestTrainings"><div class="empty" style="padding:16px 0;color:var(--muted);">データがありません</div></div>
       </div>
     </div>
   </section>
@@ -2222,6 +2230,40 @@ function renderDashboard() {
           <div class="type-bar-count">${t.cnt}</div>
         </div>`).join('')
     : `<div style="color:var(--muted);font-size:13px;padding:10px 0;">データがありません</div>`;
+
+  // ── 最新トレーニング ──
+  const latestEl = document.getElementById('dashLatestTrainings');
+  if (!db.users.length) {
+    latestEl.innerHTML = `<div class="empty" style="padding:16px 0;color:var(--muted);">ユーザーを登録してください</div>`;
+  } else {
+    const latestItems = db.users.map((u, idx) => {
+      const color = USER_COLORS[idx % USER_COLORS.length];
+      const trains = db.trainings.filter(t => t.userId === u.id).sort((a,b) => b.date.localeCompare(a.date));
+      const latest = trains[0];
+      if (!latest) return `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
+          <div style="flex-shrink:0;">${getIconHtml(u.id, 36)}</div>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:600;color:var(--text);">${esc(u.name)}</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px;">記録なし</div>
+          </div>
+        </div>`;
+      const tp = getType(latest.type);
+      return `
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
+          <div style="flex-shrink:0;">${getIconHtml(u.id, 36)}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+              <span style="font-size:13px;font-weight:600;color:var(--text);">${esc(u.name)}</span>
+              <span style="font-size:11px;background:${color}22;color:${color};border:1px solid ${color}44;border-radius:4px;padding:1px 6px;">${tp?.icon||'⚡'} ${tp?.label||latest.type}</span>
+            </div>
+            <div style="font-size:12px;color:var(--muted);">📅 ${latest.date.replace(/-/g,'/')}</div>
+            ${latest.memo ? `<div style="font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">💬 ${esc(latest.memo)}</div>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+    latestEl.innerHTML = latestItems + '<style>#dashLatestTrainings > div:last-of-type { border-bottom: none; }</style>';
+  }
 
   // Weight User Grid
   const wug = document.getElementById('weightUserGrid');
