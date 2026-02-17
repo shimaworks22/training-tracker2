@@ -168,6 +168,9 @@
   .drawer-footer {
     padding: 16px 20px;
     border-top: 1px solid var(--border);
+    position: sticky;
+    bottom: 0;
+    background: var(--bg2);
   }
   .drawer-logout-btn {
     display: flex; align-items: center; gap: 10px;
@@ -1368,16 +1371,18 @@ async function sbFetch(path, method='GET', body=null) {
       'Content-Type': 'application/json',
       'apikey': SUPABASE_ANON,
       'Authorization': `Bearer ${token}`,
+      'Prefer': 'return=minimal'
     }
   };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, opts);
-  if (!res.ok && res.status !== 204) {
+  if (!res.ok) {
     const txt = await res.text();
-    throw new Error(txt);
+    throw new Error(txt || `HTTP ${res.status}`);
   }
-  if (res.status === 204 || method === 'DELETE' || method === 'PATCH') return null;
-  return res.json();
+  // GETのみJSONを返す、それ以外は空
+  if (method === 'GET') return res.json();
+  return null;
 }
 
 async function loadAllData() {
