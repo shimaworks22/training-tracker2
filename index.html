@@ -2419,6 +2419,35 @@ document.querySelectorAll('[onclick*="modalWeight"]').forEach(btn => {
 });
 
 // ════════════════════════════════════════
+//  DRAWER & TAB
+// ════════════════════════════════════════
+function toggleDrawer() {
+  const drawer  = document.getElementById('drawer');
+  const overlay = document.getElementById('drawerOverlay');
+  const btn     = document.getElementById('hamburgerBtn');
+  if (drawer.classList.contains('open')) { closeDrawer(); }
+  else {
+    drawer.classList.add('open');
+    overlay.classList.add('open');
+    btn.classList.add('open');
+  }
+}
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.remove('open');
+  document.getElementById('hamburgerBtn').classList.remove('open');
+}
+function switchTab(btn) {
+  document.querySelectorAll('.drawer-nav-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const tab = btn.dataset.tab;
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('sec-' + tab).classList.add('active');
+  if (tab === 'dashboard') renderDashboard();
+  closeDrawer();
+}
+
+// ════════════════════════════════════════
 //  INIT
 // ════════════════════════════════════════
 dpInit('dp_t', today());
