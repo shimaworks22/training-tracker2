@@ -1367,11 +1367,28 @@ async function loadAllData() {
 }
 
 async function sbSaveUser(name, height, targetWeight) {
-  const { error } = await sb.from('profiles').upsert(
-    { id: currentUser.id, name, height: height||null, target_weight: targetWeight||null },
-    { onConflict: 'id' }
-  );
-  if (error) throw error;
+  // まず既存レコードを確認
+  const { data: existing } = await sb.from('profiles').select('id').eq('id', currentUser.id).maybeSingle();
+
+  let error;
+  if (existing) {
+    // 既存 → UPDATE
+    const res = await sb.from('profiles').update({
+      name, height: height||null, target_weight: targetWeight||null
+    }).eq('id', currentUser.id);
+    error = res.error;
+  } else {
+    // 新規 → INSERT
+    const res = await sb.from('profiles').insert({
+      id: currentUser.id, name, height: height||null, target_weight: targetWeight||null
+    });
+    error = res.error;
+  }
+
+  if (error) {
+    console.error('sbSaveUser error:', error);
+    throw new Error(error.message || 'プロフィールの保存に失敗しました');
+  }
   await loadAllData();
 }
 
