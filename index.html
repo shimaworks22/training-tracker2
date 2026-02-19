@@ -842,7 +842,7 @@
   </div>
   <div class="header-actions">
     <button class="btn btn-primary" id="btnAddTraining" disabled>💪 記録</button>
-    <button class="btn btn-success" id="btnAddWeight" disabled>⚖️ 体重</button>
+    <button class="btn" style="background:rgba(255,209,102,0.15);color:#FFD166;border:1px solid rgba(255,209,102,0.3);" id="btnAddWeight" disabled>⚖️ 体重</button>
   </div>
 </header>
 
@@ -1417,7 +1417,7 @@ const TRAINING_TYPES = [
   { id:'other',      icon:'⚡', label:'その他' },
 ];
 
-const USER_COLORS = ['#00D4FF','#0EA5E9','#06B6D4','#0284C7','#0369A1','#075985','#0C4A6E','#082F49'];
+const USER_COLORS = ['#00D4FF','#3B82F6','#8B5CF6','#06B6D4','#0EA5E9','#6366F1','#14B8A6','#0284C7'];
 
 // インメモリDB（Supabaseから読み込んだデータをキャッシュ）
 let db = { users:[], trainings:[], weights:[], likes:[] };
