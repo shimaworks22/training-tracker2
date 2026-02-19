@@ -886,6 +886,13 @@
       </div>
     </div>
 
+    <!-- Row2.5: 年間月別平均体重 -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-title">📊 年間 月別平均体重</div>
+      <canvas id="dashYearlyWeightChart"></canvas>
+      <div id="dashYearlyWeightEmpty" class="empty" style="display:none;padding:30px 10px;color:var(--muted);">データがありません</div>
+    </div>
+
     <!-- Row3: 種別内訳 + 体重進捗 -->
     <div class="charts-row">
       <div class="card">
@@ -1978,6 +1985,7 @@ function renderTrainings() {
 // ════════════════════════════════════════
 let weightChart = null;
 let dashWeightChart = null;
+let dashYearlyWeightChart = null;
 
 function populateWeightSelects() {
   const sel  = document.getElementById('w_user');
@@ -2357,6 +2365,94 @@ function renderDashboard() {
         </div>`;
     }).join('');
     latestEl.innerHTML = latestItems + '<style>#dashLatestTrainings > div:last-of-type { border-bottom: none; }</style>';
+  }
+
+  // ── 年間月別平均体重グラフ ──
+  const yearlyCanvas = document.getElementById('dashYearlyWeightChart');
+  const yearlyEmpty = document.getElementById('dashYearlyWeightEmpty');
+  
+  if (dashYearlyWeightChart) dashYearlyWeightChart.destroy();
+  
+  if (!db.users.length || db.weights.length === 0) {
+    yearlyCanvas.style.display = 'none';
+    yearlyEmpty.style.display = 'block';
+  } else {
+    yearlyCanvas.style.display = 'block';
+    yearlyEmpty.style.display = 'none';
+    
+    // 過去12ヶ月分の月リストを生成
+    const months12 = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      months12.push(d.toISOString().slice(0,7));
+    }
+    
+    // ユーザーごとに月別平均体重を計算
+    const yearlyDatasets = db.users.map((u, idx) => {
+      const monthlyAvg = months12.map(month => {
+        const monthWeights = db.weights.filter(w => w.userId === u.id && w.date.slice(0,7) === month);
+        if (monthWeights.length === 0) return null;
+        const avg = monthWeights.reduce((sum, w) => sum + w.weight, 0) / monthWeights.length;
+        return { x: month.slice(5) + '月', y: parseFloat(avg.toFixed(1)) };
+      }).filter(d => d !== null);
+      
+      return {
+        label: u.name,
+        data: monthlyAvg,
+        borderColor: USER_COLORS[idx % USER_COLORS.length],
+        backgroundColor: 'transparent',
+        tension: 0.3,
+        pointBackgroundColor: USER_COLORS[idx % USER_COLORS.length],
+        pointRadius: 4,
+        pointHoverRadius: 6
+      };
+    }).filter(ds => ds.data.length > 0);
+    
+    if (yearlyDatasets.length === 0) {
+      yearlyCanvas.style.display = 'none';
+      yearlyEmpty.style.display = 'block';
+    } else {
+      const yearlyCtx = yearlyCanvas.getContext('2d');
+      dashYearlyWeightChart = new Chart(yearlyCtx, {
+        type: 'line',
+        data: { datasets: yearlyDatasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          aspectRatio: 2.5,
+          plugins: {
+            legend: {
+              display: db.users.length > 1,
+              labels: { color: '#8899A6', font: { size: 11 }, boxWidth: 12 }
+            },
+            datalabels: {
+              display: true,
+              align: 'top',
+              anchor: 'end',
+              color: function(context) {
+                return context.dataset.borderColor;
+              },
+              font: { size: 10, weight: 'bold' },
+              formatter: function(value) {
+                return value.y + 'kg';
+              }
+            }
+          },
+          scales: {
+            x: {
+              type: 'category',
+              ticks: { color: '#4A6578', font: { size: 10 } },
+              grid: { color: '#1A3044' }
+            },
+            y: {
+              ticks: { color: '#4A6578', font: { size: 10 } },
+              grid: { color: '#1A3044' }
+            }
+          }
+        }
+      });
+    }
   }
 
   // Weight User Grid
