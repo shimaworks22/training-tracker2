@@ -23,6 +23,10 @@
     --muted2:   #2A3F52;
     --font-display: 'Barlow Condensed', sans-serif;
     --font-body:    'Noto Sans JP', sans-serif;
+    --blue-bright: #00D4FF;
+    --blue-mid:    #0EA5E9;
+    --blue-deep:   #0284C7;
+    --blue-dark:   #0369A1;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -1413,7 +1417,7 @@ const TRAINING_TYPES = [
   { id:'other',      icon:'⚡', label:'その他' },
 ];
 
-const USER_COLORS = ['#00D4FF','#FF4D6A','#3DFF8F','#FFD166','#FF69B4','#B48EFF','#FF9F43','#26C6DA'];
+const USER_COLORS = ['#00D4FF','#0EA5E9','#06B6D4','#0284C7','#0369A1','#075985','#0C4A6E','#082F49'];
 
 // インメモリDB（Supabaseから読み込んだデータをキャッシュ）
 let db = { users:[], trainings:[], weights:[], likes:[] };
@@ -2182,10 +2186,10 @@ function renderDashboard() {
   const monthTs = db.trainings.filter(t => t.date.startsWith(selMonth)).length;
   const isThisMonth = selMonth === thisMonth;
   document.getElementById('statsGrid').innerHTML = `
-    <div class="stat-card c-accent"><div class="stat-icon">👥</div><div class="stat-label">ユーザー数</div><div class="stat-value">${db.users.length}</div></div>
-    <div class="stat-card c-red"><div class="stat-icon">💪</div><div class="stat-label">総トレーニング</div><div class="stat-value">${db.trainings.length}</div></div>
-    <div class="stat-card c-green"><div class="stat-icon">📅</div><div class="stat-label">${isThisMonth?'今月':selMonth.replace('-','年')+'月'}</div><div class="stat-value">${monthTs}</div><div class="stat-sub">回</div></div>
-    <div class="stat-card c-gold"><div class="stat-icon">⏱️</div><div class="stat-label">総時間</div><div class="stat-value">${totalMin ? (totalMin/60).toFixed(1) : 0}</div><div class="stat-sub">時間</div></div>
+    <div class="stat-card" style="background:rgba(0,212,255,0.12);border-color:rgba(0,212,255,0.3);"><div class="stat-icon">👥</div><div class="stat-label">ユーザー数</div><div class="stat-value" style="color:#00D4FF;">${db.users.length}</div></div>
+    <div class="stat-card" style="background:rgba(14,165,233,0.12);border-color:rgba(14,165,233,0.3);"><div class="stat-icon">💪</div><div class="stat-label">総トレーニング</div><div class="stat-value" style="color:#0EA5E9;">${db.trainings.length}</div></div>
+    <div class="stat-card" style="background:rgba(6,182,212,0.12);border-color:rgba(6,182,212,0.3);"><div class="stat-icon">📅</div><div class="stat-label">${isThisMonth?'今月':selMonth.replace('-','年')+'月'}</div><div class="stat-value" style="color:#06B6D4;">${monthTs}</div><div class="stat-sub">回</div></div>
+    <div class="stat-card" style="background:rgba(2,132,199,0.12);border-color:rgba(2,132,199,0.3);"><div class="stat-icon">⏱️</div><div class="stat-label">総時間</div><div class="stat-value" style="color:#0284C7;">${totalMin ? (totalMin/60).toFixed(1) : 0}</div><div class="stat-sub">時間</div></div>
   `;
 
   // ── 横棒グラフ（選択月のユーザー別トレーニング回数）──
@@ -2323,7 +2327,7 @@ function renderDashboard() {
   db.trainings.forEach(t => { typeCnt[t.type] = (typeCnt[t.type]||0) + 1; });
   const sorted = TRAINING_TYPES.map(t => ({...t, cnt: typeCnt[t.id]||0})).filter(t=>t.cnt>0).sort((a,b)=>b.cnt-a.cnt);
   const maxCnt = sorted.length ? Math.max(...sorted.map(t=>t.cnt)) : 1;
-  const colors = ['#00D4FF','#FF4D6A','#3DFF8F','#FFD166','#FF69B4','#B48EFF'];
+  const colors = ['#00D4FF','#0EA5E9','#06B6D4','#0284C7','#0369A1','#075985'];
   document.getElementById('typeBars').innerHTML = sorted.length
     ? sorted.slice(0,8).map((t,i) => `
         <div class="type-bar-row">
