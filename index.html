@@ -329,6 +329,17 @@
     box-shadow: 0 0 60px rgba(0,212,255,0.12);
     animation: slideUp 0.2s ease;
   }
+  .memo-row {
+    flex: 0 0 100%;
+    padding: 10px 12px;
+    background: rgba(255,209,102,0.08);
+    border-top: 1px solid rgba(255,209,102,0.2);
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
   .like-row {
     display: flex;
     align-items: center;
@@ -1912,7 +1923,6 @@ function renderTrainings() {
           ${esc(tp?.label||t.type)}
           <span class="badge" style="background:${col}22;color:${col};border-color:${col}44;margin-left:8px;">${esc(u?.name||'?')}</span>
         </div>
-        ${t.memo ? `<div style="background:rgba(255,209,102,0.08);border:1px solid rgba(255,209,102,0.2);border-radius:6px;padding:8px 10px;margin:6px 0;font-size:13px;color:var(--text);line-height:1.5;">💬 ${esc(t.memo)}</div>` : ''}
         <div class="list-item-meta">
           📅 ${dateDisp}
           ${t.location ? ` &nbsp;📍 ${esc(t.location)}` : ''}
@@ -1926,6 +1936,7 @@ function renderTrainings() {
         <button class="btn btn-sm" style="background:rgba(255,209,102,0.15);color:#FFD166;border:1px solid rgba(255,209,102,0.3);" data-edit-train>編集</button>
         <button class="btn btn-danger btn-sm" data-del-train>削除</button>
       </div>
+      ${t.memo ? `<div class="memo-row">💬 ${esc(t.memo)}</div>` : ''}
       <div class="like-row" data-like-row></div>
     `;
     // いいねボタン描画
