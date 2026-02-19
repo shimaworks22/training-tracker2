@@ -6,6 +6,7 @@
 <title>TRAINING TRACKER｜トレーニング & 体重管理</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <style>
   :root {
@@ -2271,6 +2272,18 @@ function renderDashboard() {
           legend: {
             display: db.users.length > 1,
             labels: { color: '#8899A6', font: { size: 11 }, boxWidth: 12 }
+          },
+          datalabels: {
+            display: true,
+            align: 'top',
+            anchor: 'end',
+            color: function(context) {
+              return context.dataset.borderColor;
+            },
+            font: { size: 11, weight: 'bold' },
+            formatter: function(value) {
+              return value.y + 'kg';
+            }
           }
         },
         scales: {
