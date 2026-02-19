@@ -2158,7 +2158,9 @@ function renderDashboard() {
 
   // ── 月セレクターを構築（データのある月 + 当月）──
   const monthSel = document.getElementById('dashMonthSelect');
-  const existingMonths = [...new Set(db.trainings.map(t => t.date.slice(0,7)))].sort().reverse();
+  const trainingMonths = db.trainings.map(t => t.date.slice(0,7));
+  const weightMonths = db.weights.map(w => w.date.slice(0,7));
+  const existingMonths = [...new Set([...trainingMonths, ...weightMonths])].sort().reverse();
   if (!existingMonths.includes(thisMonth)) existingMonths.unshift(thisMonth);
   // 現在の選択値を保持（なければ当月）
   const prevVal = monthSel.value || thisMonth;
