@@ -1299,7 +1299,13 @@ function showToast(msg) {
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
 }
-function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function openModal(id)  { 
+  document.getElementById(id).classList.add('open'); 
+  if (id === 'modalCsvImport') {
+    populateCsvUserSelect();
+    initCsvDrop();
+  }
+}
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 function overlayClose(e, id) { if (e.target.classList.contains('overlay')) closeModal(id); }
 
@@ -2414,17 +2420,27 @@ function initCsvDrop() {
   const zone  = document.getElementById('csvDropZone');
   const input = document.getElementById('csvFileInput');
   if (!zone || !input) return;
+  
+  // イベントを一度削除（重複防止）
   const newZone = zone.cloneNode(true);
   zone.parentNode.replaceChild(newZone, zone);
-  const newInput = newZone.querySelector('#csvFileInput') || document.getElementById('csvFileInput');
-  newZone.addEventListener('click', () => document.getElementById('csvFileInput').click());
-  newZone.addEventListener('dragover', function(e) { e.preventDefault(); newZone.style.borderColor = 'var(--accent)'; });
-  newZone.addEventListener('dragleave', function() { newZone.style.borderColor = 'var(--border)'; });
+  const newInput = document.getElementById('csvFileInput');
+  
+  newZone.addEventListener('click', () => newInput.click());
+  newZone.addEventListener('dragover', function(e) { 
+    e.preventDefault(); 
+    newZone.style.borderColor = 'var(--accent)'; 
+  });
+  newZone.addEventListener('dragleave', function() { 
+    newZone.style.borderColor = 'var(--border)'; 
+  });
   newZone.addEventListener('drop', function(e) {
-    e.preventDefault(); newZone.style.borderColor = 'var(--border)';
+    e.preventDefault(); 
+    newZone.style.borderColor = 'var(--border)';
     if (e.dataTransfer.files[0]) csvReadFile(e.dataTransfer.files[0]);
   });
-  document.getElementById('csvFileInput').addEventListener('change', function() {
+  
+  newInput.addEventListener('change', function() {
     if (this.files[0]) csvReadFile(this.files[0]);
   });
 }
