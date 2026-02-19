@@ -1027,10 +1027,7 @@
       <label>場所・施設名</label>
       <input type="text" id="t_location" placeholder="例：ゴールドジム渋谷、代々木公園">
     </div>
-    <div class="field">
-      <label>住所・エリア</label>
-      <input type="text" id="t_address" placeholder="例：東京都渋谷区">
-    </div>
+
     <div class="row2">
       <div class="field">
         <label>日付 <span class="req">*</span></label>
@@ -1227,10 +1224,7 @@
       <label>場所・施設名</label>
       <input type="text" id="et_location" placeholder="例：ゴールドジム渋谷">
     </div>
-    <div class="field">
-      <label>住所・エリア</label>
-      <input type="text" id="et_address" placeholder="例：東京都渋谷区">
-    </div>
+
     <div class="row2">
       <div class="field">
         <label>日付 <span class="req">*</span></label>
@@ -1546,7 +1540,7 @@ async function loadAllData() {
     const trainings = await sbFetch(`trainings?owner_id=eq.${oid}&order=date.desc`);
     db.trainings = (trainings||[]).map(t => ({
       id: t.id, userId: t.user_id, type: t.type, date: t.date,
-      location: t.location, address: t.address, duration: t.duration,
+      location: t.location, duration: t.duration,
       cal: t.cal, postWeight: t.post_weight, memo: t.memo, createdAt: t.created_at
     }));
 
@@ -1591,7 +1585,7 @@ async function sbDeleteUser(id) {
 async function sbSaveTraining(data) {
   await sbFetch('trainings', 'POST', {
     owner_id: currentUser.id, user_id: data.userId, type: data.type, date: data.date,
-    location: data.location||null, address: data.address||null,
+    location: data.location||null,
     duration: data.duration||null, cal: data.cal||null,
     post_weight: data.postWeight||null, memo: data.memo||null
   });
@@ -1600,7 +1594,7 @@ async function sbSaveTraining(data) {
 async function sbUpdateTraining(id, data) {
   await sbFetch(`trainings?id=eq.${id}&owner_id=eq.${currentUser.id}`, 'PATCH', {
     user_id: data.userId, type: data.type, date: data.date,
-    location: data.location||null, address: data.address||null,
+    location: data.location||null,
     duration: data.duration||null, cal: data.cal||null,
     post_weight: data.postWeight||null, memo: data.memo||null
   });
@@ -1817,7 +1811,7 @@ async function saveTraining() {
   const data = {
     userId, type, date,
     location: document.getElementById('t_location').value.trim(),
-    address:  document.getElementById('t_address').value.trim(),
+
     duration: parseFloat(document.getElementById('t_duration').value) || null,
     cal:      parseFloat(document.getElementById('t_cal').value) || null,
     postWeight,
@@ -1830,7 +1824,7 @@ async function saveTraining() {
     }
     await loadAllData();
     closeModal('modalTraining');
-    ['t_location','t_address','t_duration','t_cal','t_weight','t_memo'].forEach(id => document.getElementById(id).value = '');
+    ['t_location','t_duration','t_cal','t_weight','t_memo'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('t_date').value = '';
     document.getElementById('dp_t_display').textContent = '日付を選択';
     dpInit('dp_t', today());
@@ -1854,7 +1848,7 @@ function openEditTraining(t) {
   userSel.innerHTML = db.users.map(u => `<option value="${u.id}">${esc(u.name)}</option>`).join('');
   userSel.value = t.userId;
   document.getElementById('et_location').value = t.location || '';
-  document.getElementById('et_address').value  = t.address  || '';
+
   document.getElementById('et_duration').value = t.duration || '';
   document.getElementById('et_weight').value   = t.postWeight || '';
   document.getElementById('et_cal').value      = t.cal      || '';
@@ -1876,7 +1870,7 @@ async function updateTraining() {
   const data = {
     userId, type, date,
     location: document.getElementById('et_location').value.trim(),
-    address:  document.getElementById('et_address').value.trim(),
+
     duration: parseFloat(document.getElementById('et_duration').value) || null,
     cal:      parseFloat(document.getElementById('et_cal').value) || null,
     postWeight: newPostWeight,
@@ -1934,7 +1928,7 @@ function renderTrainings() {
         <div class="list-item-meta">
           📅 ${dateDisp}
           ${t.location ? ` &nbsp;📍 ${esc(t.location)}` : ''}
-          ${t.address  ? ` &nbsp;🗺️ ${esc(t.address)}`  : ''}
+          
         </div>
       </div>
       <div class="list-item-actions">
