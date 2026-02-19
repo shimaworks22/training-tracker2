@@ -876,7 +876,7 @@
     <div class="dash-row2" style="margin-bottom:20px;">
       <div class="card">
         <div class="card-title">📉 当月の体重推移</div>
-        <canvas id="dashWeightChart" height="200"></canvas>
+        <canvas id="dashWeightChart"></canvas>
         <div id="dashWeightEmpty" class="empty" style="display:none;padding:30px 10px;color:var(--muted);">データがありません</div>
       </div>
       <div class="card">
@@ -2265,7 +2265,8 @@ function renderDashboard() {
       data: { datasets },
       options: {
         responsive: true,
-        maintainAspectRatio: false,
+        maintainAspectRatio: true,
+        aspectRatio: 2,
         plugins: {
           legend: {
             display: db.users.length > 1,
