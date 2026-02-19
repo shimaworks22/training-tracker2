@@ -345,40 +345,23 @@
     white-space: pre-wrap;
     word-break: break-word;
   }
-  .like-row {
+  .comment-row {
     display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 12px 8px;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
     border-top: 1px solid var(--border);
-    flex-wrap: wrap;
   }
-  .like-btn {
+  .comment-form {
     display: flex;
-    align-items: center;
-    gap: 4px;
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 99px;
-    padding: 4px 10px 4px 6px;
-    cursor: pointer;
-    transition: all 0.15s;
-    color: var(--muted);
-    font-size: 13px;
+    flex-direction: column;
+    gap: 8px;
   }
-  .like-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.08); }
-  .like-btn.liked { border-color: #FFD166; background: rgba(255,209,102,0.12); }
-  .like-btn.liked .like-thumb { filter: none; }
-  .like-thumb { font-size: 14px; }
-  .like-total {
-    margin-left: 4px;
-    font-size: 13px;
-    font-weight: 700;
-    color: #FFD166;
-    background: rgba(255,209,102,0.12);
-    border: 1px solid rgba(255,209,102,0.3);
-    border-radius: 99px;
-    padding: 3px 10px;
+  .comment-item {
+    padding: 8px;
+    background: rgba(0,212,255,0.03);
+    border-radius: 8px;
+    border: 1px solid rgba(0,212,255,0.1);
   }
   @keyframes slideUp {
     from { opacity: 0; transform: translateY(20px); }
@@ -591,7 +574,7 @@
   .list-item > .list-item-icon,
   .list-item > .list-item-body,
   .list-item > .list-item-actions { margin-bottom: 14px; }
-  .like-row { flex: 0 0 calc(100% + 32px); margin: 0 -16px; border-radius: 0 0 10px 10px; }
+  .comment-row { flex: 0 0 calc(100% + 32px); margin: 0 -16px; border-radius: 0 0 10px 10px; }
   @keyframes fadeIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: translateX(0); } }
   .list-item-icon { font-size: 26px; flex-shrink: 0; }
   .list-item-body { flex: 1; min-width: 0; }
@@ -1420,7 +1403,7 @@ const TRAINING_TYPES = [
 const USER_COLORS = ['#00D4FF','#3B82F6','#8B5CF6','#06B6D4','#0EA5E9','#6366F1','#14B8A6','#0284C7'];
 
 // インメモリDB（Supabaseから読み込んだデータをキャッシュ）
-let db = { users:[], trainings:[], weights:[], likes:[] };
+let db = { users:[], trainings:[], weights:[], comments:[] };
 let currentUser = null; // ログイン中のSupabaseユーザー
 let accessToken = null;  // JWTトークン
 
@@ -1484,7 +1467,7 @@ async function signOut() {
     currentUser = null;
     accessToken = null;
     _lastUserId = null;
-    db = { users:[], trainings:[], weights:[] };
+    db = { users:[], trainings:[], weights:[], comments:[] };
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('appScreen').style.display   = 'none';
     closeDrawer();
@@ -1513,7 +1496,7 @@ sb.auth.onAuthStateChange(async (event, session) => {
     _lastUserId = null;
     currentUser = null;
     accessToken = null;
-    db = { users:[], trainings:[], weights:[] };
+    db = { users:[], trainings:[], weights:[], comments:[] };
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('appScreen').style.display   = 'none';
   }
@@ -1573,10 +1556,13 @@ async function loadAllData() {
       fat: w.fat, memo: w.memo, createdAt: w.created_at
     }));
 
-    const likes = await sbFetch(`likes?owner_id=eq.${oid}`);
-    db.likes = (likes||[]).map(l => ({ id: l.id, trainingId: l.training_id, userId: l.user_id }));
+    const comments = await sbFetch(`comments?owner_id=eq.${oid}&order=created_at`);
+    db.comments = (comments||[]).map(c => ({ 
+      id: c.id, trainingId: c.training_id, userId: c.user_id, 
+      comment: c.comment, createdAt: c.created_at 
+    }));
 
-    console.log('loadAllData:', { users: db.users.length, trainings: db.trainings.length, weights: db.weights.length, likes: db.likes.length });
+    console.log('loadAllData:', { users: db.users.length, trainings: db.trainings.length, weights: db.weights.length, comments: db.comments.length });
     await refreshAvatarCache();
   } catch(e) {
     console.error('loadAllData failed:', e);
@@ -1642,18 +1628,21 @@ async function sbDeleteWeight(id) {
   await sbFetch(`weights?id=eq.${id}&owner_id=eq.${currentUser.id}`, 'DELETE');
 }
 
-async function sbToggleLike(trainingId, userId) {
-  const existing = db.likes.find(l => l.trainingId === trainingId && l.userId === userId);
-  if (existing) {
-    await sbFetch(`likes?id=eq.${existing.id}&owner_id=eq.${currentUser.id}`, 'DELETE');
-  } else {
-    await sbFetch('likes', 'POST', {
-      owner_id: currentUser.id, training_id: trainingId, user_id: userId
-    });
-  }
+async function sbAddComment(trainingId, userId, commentText) {
+  await sbFetch('comments', 'POST', {
+    owner_id: currentUser.id, 
+    training_id: trainingId, 
+    user_id: userId,
+    comment: commentText
+  });
   await loadAllData();
   renderTrainings();
-  renderDashboard();
+}
+
+async function sbDeleteComment(commentId) {
+  await sbFetch(`comments?id=eq.${commentId}&owner_id=eq.${currentUser.id}`, 'DELETE');
+  await loadAllData();
+  renderTrainings();
 }
 
 // ════════════════════════════════════════
@@ -1956,27 +1945,74 @@ function renderTrainings() {
         <button class="btn btn-danger btn-sm" data-del-train>削除</button>
       </div>
       ${t.memo ? `<div class="memo-row">💬 ${esc(t.memo)}</div>` : ''}
-      <div class="like-row" data-like-row></div>
+      <div class="comment-row" data-comment-row></div>
     `;
-    // いいねボタン描画
-    const likeRow = div.querySelector('[data-like-row]');
-    db.users.forEach(u => {
-      const liked = db.likes.some(l => l.trainingId === t.id && l.userId === u.id);
-      const likeCount = db.likes.filter(l => l.trainingId === t.id && l.userId === u.id).length;
-      const btn = document.createElement('button');
-      btn.className = 'like-btn' + (liked ? ' liked' : '');
-      btn.innerHTML = `${getIconHtml(u.id, 20)}<span class="like-thumb">👍</span>`;
-      btn.title = u.name;
-      btn.addEventListener('click', () => sbToggleLike(t.id, u.id));
-      likeRow.appendChild(btn);
+    // コメント表示
+    const commentRow = div.querySelector('[data-comment-row]');
+    const trainingComments = db.comments.filter(c => c.trainingId === t.id);
+    
+    // コメント入力フォーム
+    const commentForm = document.createElement('div');
+    commentForm.className = 'comment-form';
+    commentForm.innerHTML = `
+      <div style="display:flex;gap:8px;align-items:center;">
+        <select class="comment-user-select" style="padding:6px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;">
+          ${db.users.map(u => `<option value="${u.id}">${esc(u.name)}</option>`).join('')}
+        </select>
+        <input type="text" class="comment-input" placeholder="コメント（200文字まで）..." maxlength="200" style="flex:1;padding:6px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;">
+        <button class="comment-submit-btn" style="padding:6px 12px;background:rgba(0,212,255,0.15);color:var(--accent);border:1px solid rgba(0,212,255,0.3);border-radius:6px;font-size:12px;cursor:pointer;white-space:nowrap;">送信</button>
+      </div>
+    `;
+    commentRow.appendChild(commentForm);
+    
+    const submitBtn = commentForm.querySelector('.comment-submit-btn');
+    const input = commentForm.querySelector('.comment-input');
+    const userSel = commentForm.querySelector('.comment-user-select');
+    submitBtn.addEventListener('click', async () => {
+      const text = input.value.trim();
+      const userId = userSel.value;
+      if (!text) return;
+      if (text.length > 200) {
+        alert('コメントは200文字以内で入力してください');
+        return;
+      }
+      submitBtn.disabled = true;
+      submitBtn.textContent = '送信中...';
+      await sbAddComment(t.id, userId, text);
+      input.value = '';
+      submitBtn.disabled = false;
+      submitBtn.textContent = '送信';
     });
-    // いいね合計バッジ
-    const totalLikes = db.likes.filter(l => l.trainingId === t.id).length;
-    if (totalLikes > 0) {
-      const badge = document.createElement('span');
-      badge.className = 'like-total';
-      badge.textContent = '👍 ' + totalLikes;
-      likeRow.appendChild(badge);
+    
+    // 既存コメント表示
+    if (trainingComments.length > 0) {
+      const commentsWrap = document.createElement('div');
+      commentsWrap.style.cssText = 'margin-top:10px;';
+      trainingComments.forEach(c => {
+        const u = getUser(c.userId);
+        const commentDiv = document.createElement('div');
+        commentDiv.className = 'comment-item';
+        commentDiv.innerHTML = `
+          <div style="display:flex;gap:8px;align-items:flex-start;">
+            ${getIconHtml(c.userId, 24)}
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:2px;">${esc(u?.name||'?')} • ${new Date(c.createdAt).toLocaleString('ja-JP', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+              <div style="font-size:13px;color:var(--text);word-break:break-word;">${esc(c.comment)}</div>
+            </div>
+            <button class="comment-delete-btn" data-comment-id="${c.id}" style="padding:2px 6px;background:rgba(255,77,106,0.15);color:var(--red);border:1px solid rgba(255,77,106,0.3);border-radius:4px;font-size:10px;cursor:pointer;">削除</button>
+          </div>
+        `;
+        commentsWrap.appendChild(commentDiv);
+      });
+      commentRow.appendChild(commentsWrap);
+      
+      // 削除ボタンのイベント
+      commentRow.querySelectorAll('.comment-delete-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('このコメントを削除しますか？')) return;
+          await sbDeleteComment(btn.dataset.commentId);
+        });
+      });
     }
     div.querySelector('[data-del-train]').addEventListener('click', () => deleteTraining(t.id));
     div.querySelector('[data-edit-train]').addEventListener('click', () => openEditTraining(t));
