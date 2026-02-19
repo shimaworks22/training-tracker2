@@ -872,11 +872,12 @@
       </div>
     </div>
 
-    <!-- Row2: いいねランキング + 最新トレーニング -->
+    <!-- Row2: 体重推移 + 最新トレーニング -->
     <div class="dash-row2" style="margin-bottom:20px;">
       <div class="card">
-        <div class="card-title">👍 月間いいねランキング</div>
-        <div id="dashLikeRanking"><div class="empty" style="padding:16px 0;color:var(--muted);">データがありません</div></div>
+        <div class="card-title">📉 当月の体重推移</div>
+        <canvas id="dashWeightChart" height="200"></canvas>
+        <div id="dashWeightEmpty" class="empty" style="display:none;padding:30px 10px;color:var(--muted);">データがありません</div>
       </div>
       <div class="card">
         <div class="card-title">🏃 最新トレーニング</div>
@@ -1969,6 +1970,7 @@ function renderTrainings() {
 //  WEIGHTS
 // ════════════════════════════════════════
 let weightChart = null;
+let dashWeightChart = null;
 
 function populateWeightSelects() {
   const sel  = document.getElementById('w_user');
@@ -2229,40 +2231,60 @@ function renderDashboard() {
       </div>`).join('');
   }
 
-  // ── いいねランキング ──
-  const likeRankEl = document.getElementById('dashLikeRanking');
-  const monthLikes = db.likes.filter(l => {
-    const t = db.trainings.find(tr => tr.id === l.trainingId);
-    return t && t.date.slice(0,7) === selMonth;
-  });
-  const likeByUser = db.users.map((u, idx) => ({
-    user: u,
-    count: monthLikes.filter(l => {
-      const t = db.trainings.find(tr => tr.id === l.trainingId);
-      return t && t.userId === u.id;
-    }).length,
-    color: USER_COLORS[idx % USER_COLORS.length]
-  })).sort((a,b) => b.count - a.count);
-  const maxLikes = Math.max(...likeByUser.map(u => u.count), 1);
-  const medals = ['🥇','🥈','🥉'];
-
-  if (!db.users.length || likeByUser.every(u => u.count === 0)) {
-    likeRankEl.innerHTML = `<div class="empty" style="padding:20px 0;color:var(--muted);">この月のいいねがありません</div>`;
+  // ── 体重推移グラフ（当月） ──
+  const canvas = document.getElementById('dashWeightChart');
+  const emptyEl = document.getElementById('dashWeightEmpty');
+  const monthWeights = db.weights.filter(w => w.date.slice(0,7) === selMonth).sort((a,b) => a.date.localeCompare(b.date));
+  
+  if (dashWeightChart) dashWeightChart.destroy();
+  
+  if (!db.users.length || monthWeights.length === 0) {
+    canvas.style.display = 'none';
+    emptyEl.style.display = 'block';
   } else {
-    likeRankEl.innerHTML = likeByUser.map(({user, count, color}, i) => `
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
-        <div style="font-size:20px;width:28px;text-align:center;flex-shrink:0;">${medals[i]||''}</div>
-        <div style="flex-shrink:0;">${getIconHtml(user.id, 36)}</div>
-        <div style="flex:1;min-width:0;">
-          <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
-            <span style="font-size:13px;font-weight:600;color:var(--text);">${esc(user.name)}</span>
-            <span style="font-family:var(--font-display);font-size:16px;font-weight:800;color:#FFD166;">👍 ${count}</span>
-          </div>
-          <div style="height:10px;background:var(--bg3);border-radius:99px;overflow:hidden;">
-            <div style="height:100%;width:${count===0?0:(count/maxLikes*100).toFixed(0)}%;background:#FFD166;border-radius:99px;transition:width 0.4s ease;"></div>
-          </div>
-        </div>
-      </div>`).join('');
+    canvas.style.display = 'block';
+    emptyEl.style.display = 'none';
+    
+    const datasets = db.users.map((u, idx) => {
+      const userWeights = monthWeights.filter(w => w.userId === u.id);
+      return {
+        label: u.name,
+        data: userWeights.map(w => ({ x: w.date.slice(5), y: w.weight })),
+        borderColor: USER_COLORS[idx % USER_COLORS.length],
+        backgroundColor: 'transparent',
+        tension: 0.3,
+        pointBackgroundColor: USER_COLORS[idx % USER_COLORS.length],
+        pointRadius: 4,
+        pointHoverRadius: 6
+      };
+    }).filter(ds => ds.data.length > 0);
+    
+    const ctx = canvas.getContext('2d');
+    dashWeightChart = new Chart(ctx, {
+      type: 'line',
+      data: { datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: db.users.length > 1,
+            labels: { color: '#8899A6', font: { size: 11 }, boxWidth: 12 }
+          }
+        },
+        scales: {
+          x: {
+            type: 'category',
+            ticks: { color: '#4A6578', font: { size: 10 } },
+            grid: { color: '#1A3044' }
+          },
+          y: {
+            ticks: { color: '#4A6578', font: { size: 10 } },
+            grid: { color: '#1A3044' }
+          }
+        }
+      }
+    });
   }
 
   // Type Bars
