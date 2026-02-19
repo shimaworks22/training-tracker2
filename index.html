@@ -2573,7 +2573,7 @@ async function csvImport() {
       return w.userId === userId && w.date === dateStr && w.weight === weight;
     });
     if (dup) { skipped++; return; }
-    inserts.push({ user_id: userId, weight: weight, date: dateStr, fat: fat, memo: 'CSVインポート' });
+    inserts.push({ owner_id: currentUser.id, user_id: userId, weight: weight, date: dateStr, fat: fat, memo: 'CSVインポート' });
   });
 
   try {
