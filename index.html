@@ -169,7 +169,7 @@
     border-left-color: var(--accent);
     background: rgba(0,212,255,0.06);
   }
-  .drawer-nav-btn .nav-icon { font-size: 18px; width: 24px; text-align: center; }
+  .drawer-nav-btn .nav-icon { font-size: 20px; width: 28px; text-align: center; font-weight: 600; }
   .drawer-footer {
     padding: 16px 20px;
     border-top: 1px solid var(--border);
@@ -790,20 +790,20 @@
   </div>
   <nav class="drawer-nav">
     <button class="drawer-nav-btn active" data-tab="dashboard" onclick="switchTab(this)">
-      <span class="nav-icon">📊</span> ダッシュボード
+      <span class="nav-icon">◔</span> ダッシュボード
     </button>
     <button class="drawer-nav-btn" data-tab="users" onclick="switchTab(this)">
-      <span class="nav-icon">👥</span> ユーザー
+      <span class="nav-icon">⚉</span> ユーザー
     </button>
     <button class="drawer-nav-btn" data-tab="trainings" onclick="switchTab(this)">
-      <span class="nav-icon">💪</span> トレーニング
+      <span class="nav-icon">⚛</span> トレーニング
     </button>
     <button class="drawer-nav-btn" data-tab="weights" onclick="switchTab(this)">
-      <span class="nav-icon">⚖️</span> 体重
+      <span class="nav-icon">⚖</span> 体重
     </button>
     <div style="padding: 12px 20px 4px;">
       <button class="drawer-logout-btn" onclick="signOut()">
-        <span>🚪</span> ログアウト
+        <span style="font-size:16px;">⎋</span> ログアウト
       </button>
     </div>
   </nav>
@@ -1070,7 +1070,7 @@
 <!-- Weight Modal -->
 <div class="overlay" id="modalWeight" onclick="overlayClose(event, 'modalWeight')">
   <div class="modal">
-    <div class="modal-title" style="color:var(--green);">⚖️ 体重記録</div>
+    <div class="modal-title" style="color:var(--gold);">⚖️ 体重記録</div>
     <div class="field">
       <label>ユーザー <span class="req">*</span></label>
       <select id="w_user"></select>
