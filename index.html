@@ -1097,7 +1097,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modalWeight')">キャンセル</button>
-      <button class="btn btn-success" onclick="saveWeight()">記録する</button>
+      <button class="btn" style="background:rgba(255,209,102,0.15);color:#FFD166;border:1px solid rgba(255,209,102,0.3);" onclick="saveWeight()">記録する</button>
     </div>
   </div>
 </div>
@@ -1773,6 +1773,27 @@ function renderUsers() {
           <div class="user-stat-label">現在体重</div>
         </div>
       </div>
+      ${(() => {
+        const oldest = uws[uws.length - 1];
+        if (oldest && latest && oldest.id !== latest.id) {
+          const change = (latest.weight - oldest.weight).toFixed(1);
+          const isPositive = parseFloat(change) > 0;
+          const changeColor = isPositive ? 'var(--red)' : '#00D4FF';
+          return `
+            <div style="background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.15);border-radius:8px;padding:10px;margin-top:8px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div style="font-size:11px;color:var(--muted);">
+                  開始時 ${oldest.weight}kg → 現在 ${latest.weight}kg
+                </div>
+                <div style="font-size:16px;font-weight:700;color:${changeColor};">
+                  ${isPositive ? '+' : ''}${change}kg
+                </div>
+              </div>
+            </div>
+          `;
+        }
+        return '';
+      })()}
       ${u.targetWeight ? `
       <div style="margin-bottom:6px;">
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:5px;">
