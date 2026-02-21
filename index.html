@@ -875,7 +875,10 @@
 
     <!-- Row2.5: 年間月別平均体重 -->
     <div class="card" style="margin-bottom:20px;">
-      <div class="card-title">📊 年間 月別平均体重</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+        <div class="card-title" style="margin:0;">📊 年間 月別平均体重</div>
+        <select id="dashYearlyUserSelect" onchange="renderDashboard()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;font-family:var(--font-body);font-size:13px;cursor:pointer;"></select>
+      </div>
       <canvas id="dashYearlyWeightChart"></canvas>
       <div id="dashYearlyWeightEmpty" class="empty" style="display:none;padding:30px 10px;color:var(--muted);">データがありません</div>
     </div>
@@ -2436,6 +2439,17 @@ function renderDashboard() {
   // ── 年間月別平均体重グラフ ──
   const yearlyCanvas = document.getElementById('dashYearlyWeightChart');
   const yearlyEmpty = document.getElementById('dashYearlyWeightEmpty');
+  const yearlyUserSel = document.getElementById('dashYearlyUserSelect');
+  
+  // ユーザーセレクター構築
+  if (db.users.length > 0) {
+    const prevYearlyVal = yearlyUserSel.value || 'all';
+    yearlyUserSel.innerHTML = `<option value="all">全員</option>` + 
+      db.users.map(u => `<option value="${u.id}">${esc(u.name)}</option>`).join('');
+    yearlyUserSel.value = db.users.some(u => u.id === prevYearlyVal) || prevYearlyVal === 'all' ? prevYearlyVal : 'all';
+  }
+  
+  const selectedYearlyUser = yearlyUserSel.value;
   
   if (dashYearlyWeightChart) dashYearlyWeightChart.destroy();
   
@@ -2454,8 +2468,9 @@ function renderDashboard() {
       months12.push(d.toISOString().slice(0,7));
     }
     
-    // ユーザーごとに月別平均体重を計算
-    const yearlyDatasets = db.users.map((u, idx) => {
+    // 選択されたユーザーまたは全員の月別平均体重を計算
+    const targetUsers = selectedYearlyUser === 'all' ? db.users : db.users.filter(u => u.id === selectedYearlyUser);
+    const yearlyDatasets = targetUsers.map((u, idx) => {
       const monthlyAvg = months12.map(month => {
         const monthWeights = db.weights.filter(w => w.userId === u.id && w.date.slice(0,7) === month);
         if (monthWeights.length === 0) return null;
@@ -2463,15 +2478,16 @@ function renderDashboard() {
         return { x: month.slice(5) + '月', y: parseFloat(avg.toFixed(1)) };
       }).filter(d => d !== null);
       
+      const userIdx = db.users.findIndex(user => user.id === u.id);
       return {
         label: u.name,
         data: monthlyAvg,
-        borderColor: USER_COLORS[idx % USER_COLORS.length],
+        borderColor: USER_COLORS[userIdx % USER_COLORS.length],
         backgroundColor: 'transparent',
         tension: 0.3,
-        pointBackgroundColor: USER_COLORS[idx % USER_COLORS.length],
-        pointRadius: 4,
-        pointHoverRadius: 6
+        pointBackgroundColor: USER_COLORS[userIdx % USER_COLORS.length],
+        pointRadius: 5,
+        pointHoverRadius: 7
       };
     }).filter(ds => ds.data.length > 0);
     
@@ -2489,7 +2505,7 @@ function renderDashboard() {
           aspectRatio: 2.5,
           plugins: {
             legend: {
-              display: db.users.length > 1,
+              display: selectedYearlyUser === 'all' && db.users.length > 1,
               labels: { color: '#8899A6', font: { size: 11 }, boxWidth: 12 }
             },
             datalabels: {
@@ -2499,7 +2515,7 @@ function renderDashboard() {
               color: function(context) {
                 return context.dataset.borderColor;
               },
-              font: { size: 10, weight: 'bold' },
+              font: { size: 11, weight: 'bold' },
               formatter: function(value) {
                 return value.y + 'kg';
               }
