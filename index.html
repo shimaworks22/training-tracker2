@@ -936,7 +936,7 @@
       </select>
       <div style="display:flex;gap:10px;">
         <button class="btn" style="background:rgba(0,212,255,0.12);color:var(--accent);border:1px solid rgba(0,212,255,0.3);" onclick="openModal('modalCsvImport')">📂 CSVインポート</button>
-        <button class="btn btn-success" id="btnAddWeight2" disabled onclick="openModal('modalWeight')">+ 記録追加</button>
+        <button class="btn" style="background:rgba(255,209,102,0.15);color:#FFD166;border:1px solid rgba(255,209,102,0.3);" id="btnAddWeight2" disabled onclick="openModal('modalWeight')">+ 記録追加</button>
       </div>
     </div>
     <div id="weightChartWrap" class="card" style="margin-bottom:20px; display:none;">
@@ -2128,8 +2128,8 @@ function renderWeights() {
       const datasets = [{
         label: '体重(kg)',
         data: sorted.map(w => w.weight),
-        borderColor: '#3DFF8F', backgroundColor: 'rgba(61,255,143,0.1)',
-        tension: 0.4, pointBackgroundColor: '#3DFF8F', pointRadius: 4
+        borderColor: '#06B6D4', backgroundColor: 'rgba(6,182,212,0.1)',
+        tension: 0.4, pointBackgroundColor: '#06B6D4', pointRadius: 4
       }];
       if (sorted.some(w => w.fat)) {
         datasets.push({
@@ -2195,8 +2195,19 @@ function renderWeights() {
       </div>
       <div class="list-item-actions" style="gap:10px;">
         <div style="text-align:right;">
-          <div class="weight-big">${w.weight} kg</div>
-          ${diff !== null ? `<div style="font-size:12px;" class="${parseFloat(diff)<=0?'diff-neg':'diff-pos'}">目標まで ${parseFloat(diff)>0?'+':''}${diff} kg</div>` : ''}
+          <div class="weight-big" style="color:#06B6D4;">${w.weight} kg</div>
+          ${(() => {
+            const userWeights = db.weights.filter(ww => ww.userId === w.userId).sort((a,b) => a.date.localeCompare(b.date));
+            const oldest = userWeights[0];
+            if (oldest && oldest.id !== w.id) {
+              const change = (w.weight - oldest.weight).toFixed(1);
+              const isPositive = parseFloat(change) > 0;
+              const changeColor = isPositive ? 'var(--red)' : '#00D4FF';
+              return `<div style="font-size:11px;color:${changeColor};margin-top:2px;">初期から ${isPositive ? '+' : ''}${change} kg</div>`;
+            }
+            return '';
+          })()}
+          ${diff !== null ? `<div style="font-size:12px;margin-top:2px;" class="${parseFloat(diff)<=0?'diff-neg':'diff-pos'}">目標まで ${parseFloat(diff)>0?'+':''}${diff} kg</div>` : ''}
         </div>
         <button class="btn btn-sm" style="background:rgba(255,209,102,0.15);color:#FFD166;border:1px solid rgba(255,209,102,0.3);" data-edit-weight="${w.id}">編集</button>
         <button class="btn btn-danger btn-sm" data-del-weight="${w.id}">削除</button>
