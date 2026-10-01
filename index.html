@@ -876,8 +876,14 @@
     <!-- Row2.5: 年間月別平均体重 -->
     <div class="card" style="margin-bottom:20px;">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
-        <div class="card-title" style="margin:0;">📊 年間 月別平均体重</div>
-        <select id="dashYearlyUserSelect" onchange="renderDashboard()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;font-family:var(--font-body);font-size:13px;cursor:pointer;"></select>
+        <div class="card-title" style="margin:0;">📊 月別平均体重</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <select id="dashYearlyPeriodSelect" onchange="renderDashboard()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;font-family:var(--font-body);font-size:13px;cursor:pointer;">
+            <option value="12m">直近12ヶ月</option>
+            <option value="all">全期間</option>
+          </select>
+          <select id="dashYearlyUserSelect" onchange="renderDashboard()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;font-family:var(--font-body);font-size:13px;cursor:pointer;"></select>
+        </div>
       </div>
       <canvas id="dashYearlyWeightChart"></canvas>
       <div id="dashYearlyWeightEmpty" class="empty" style="display:none;padding:30px 10px;color:var(--muted);">データがありません</div>
@@ -2436,10 +2442,11 @@ function renderDashboard() {
     latestEl.innerHTML = latestItems + '<style>#dashLatestTrainings > div:last-of-type { border-bottom: none; }</style>';
   }
 
-  // ── 年間月別平均体重グラフ ──
+  // ── 月別平均体重グラフ ──
   const yearlyCanvas = document.getElementById('dashYearlyWeightChart');
   const yearlyEmpty = document.getElementById('dashYearlyWeightEmpty');
   const yearlyUserSel = document.getElementById('dashYearlyUserSelect');
+  const yearlyPeriodSel = document.getElementById('dashYearlyPeriodSelect');
   
   // ユーザーセレクター構築
   if (db.users.length > 0) {
@@ -2450,6 +2457,7 @@ function renderDashboard() {
   }
   
   const selectedYearlyUser = yearlyUserSel.value;
+  const selectedYearlyPeriod = yearlyPeriodSel.value;
   
   if (dashYearlyWeightChart) dashYearlyWeightChart.destroy();
   
@@ -2460,22 +2468,46 @@ function renderDashboard() {
     yearlyCanvas.style.display = 'block';
     yearlyEmpty.style.display = 'none';
     
-    // 過去12ヶ月分の月リストを生成
-    const months12 = [];
-    for (let i = 11; i >= 0; i--) {
-      const d = new Date();
-      d.setMonth(d.getMonth() - i);
-      months12.push(d.toISOString().slice(0,7));
+    // 期間に応じた月リストを生成
+    let monthsRange = [];
+    if (selectedYearlyPeriod === 'all') {
+      // 全期間：最も古い体重記録の月から今月まで
+      const allMonths = db.weights.map(w => w.date.slice(0,7)).sort();
+      const firstMonth = allMonths[0];
+      const now = new Date();
+      const [fy, fm] = firstMonth.split('-').map(Number);
+      let cursor = new Date(fy, fm - 1, 1);
+      const end = new Date(now.getFullYear(), now.getMonth(), 1);
+      while (cursor <= end) {
+        monthsRange.push(cursor.toISOString().slice(0,7));
+        cursor.setMonth(cursor.getMonth() + 1);
+      }
+    } else {
+      // 直近12ヶ月
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date();
+        d.setMonth(d.getMonth() - i);
+        monthsRange.push(d.toISOString().slice(0,7));
+      }
     }
+    
+    // ラベル形式：全期間は年をまたぐ可能性があるので「YY/MM」、直近12ヶ月は「MM月」
+    const formatLabel = (month) => {
+      if (selectedYearlyPeriod === 'all') {
+        const [y, m] = month.split('-');
+        return y.slice(2) + '/' + m;
+      }
+      return month.slice(5) + '月';
+    };
     
     // 選択されたユーザーまたは全員の月別平均体重を計算
     const targetUsers = selectedYearlyUser === 'all' ? db.users : db.users.filter(u => u.id === selectedYearlyUser);
     const yearlyDatasets = targetUsers.map((u, idx) => {
-      const monthlyAvg = months12.map(month => {
+      const monthlyAvg = monthsRange.map(month => {
         const monthWeights = db.weights.filter(w => w.userId === u.id && w.date.slice(0,7) === month);
         if (monthWeights.length === 0) return null;
         const avg = monthWeights.reduce((sum, w) => sum + w.weight, 0) / monthWeights.length;
-        return { x: month.slice(5) + '月', y: parseFloat(avg.toFixed(1)) };
+        return { x: formatLabel(month), y: parseFloat(avg.toFixed(1)) };
       }).filter(d => d !== null);
       
       const userIdx = db.users.findIndex(user => user.id === u.id);
@@ -2515,7 +2547,7 @@ function renderDashboard() {
               color: function(context) {
                 return context.dataset.borderColor;
               },
-              font: { size: 11, weight: 'bold' },
+              font: { size: selectedYearlyPeriod === 'all' && monthsRange.length > 15 ? 9 : 11, weight: 'bold' },
               formatter: function(value) {
                 return value.y + 'kg';
               }
